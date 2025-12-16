@@ -1,148 +1,257 @@
-import { StyleSheet, View, Text } from "react-native";
-import { FoodItem } from "../lib/models/food";
+import { useState } from "react";
+import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { FoodItem } from "../lib/models/food";
+import { useFoodContext } from "../lib/FoodContext";
+import { ActionSheet } from "./ActionSheet";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { EditMealModal } from "./EditMealModal";
+import {
+  colors,
+  spacing,
+  typography,
+  shadows,
+  borderRadius,
+} from "../lib/theme";
 
 interface FoodLogItemProps {
   item: FoodItem;
 }
 
+const mealTypeConfig: Record<
+  string,
+  { color: string; icon: keyof typeof Ionicons.glyphMap }
+> = {
+  breakfast: { color: colors.breakfast, icon: "sunny-outline" },
+  lunch: { color: colors.lunch, icon: "restaurant-outline" },
+  dinner: { color: colors.dinner, icon: "moon-outline" },
+  snack: { color: colors.snack, icon: "cafe-outline" },
+};
+
 export function FoodLogItem({ item }: FoodLogItemProps) {
+  const { updateFoodItem, removeFoodItem } = useFoodContext();
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
   };
 
-  // Badge colors by meal type
-  const getMealTypeColor = (mealType: FoodItem["mealType"]) => {
-    switch (mealType) {
-      case "breakfast":
-        return "#FF9800";
-      case "lunch":
-        return "#4CAF50";
-      case "dinner":
-        return "#2196F3";
-      case "snack":
-        return "#9C27B0";
-      default:
-        return "#757575";
+  const config = mealTypeConfig[item.mealType] || {
+    color: colors.primary,
+    icon: "nutrition-outline" as const,
+  };
+
+  const handleDelete = async () => {
+    try {
+      await removeFoodItem(item.id);
+    } catch (error) {
+      console.error("Error deleting food item:", error);
     }
   };
 
-  // Get icon for meal type
-  const getMealTypeIcon = (mealType: FoodItem["mealType"]) => {
-    switch (mealType) {
-      case "breakfast":
-        return "sunny-outline";
-      case "lunch":
-        return "restaurant-outline";
-      case "dinner":
-        return "moon-outline";
-      case "snack":
-        return "cafe-outline";
-      default:
-        return "nutrition-outline";
-    }
+  const handleSaveEdit = async (updatedItem: FoodItem) => {
+    await updateFoodItem(updatedItem);
   };
+
+  const actionOptions = [
+    {
+      label: "Edit Meal",
+      icon: "pencil-outline" as const,
+      onPress: () => setShowEditModal(true),
+    },
+    {
+      label: "Delete",
+      icon: "trash-outline" as const,
+      onPress: () => setShowDeleteConfirm(true),
+      destructive: true,
+    },
+  ];
 
   return (
-    <View style={styles.container}>
-      <View style={styles.timeColumn}>
-        <Text style={styles.timeText}>{formatTime(item.timestamp)}</Text>
+    <>
+      <TouchableOpacity
+        style={styles.container}
+        onPress={() => setShowActionSheet(true)}
+        activeOpacity={0.7}
+      >
+        {/* Meal type icon */}
         <View
           style={[
-            styles.mealTypeBadge,
-            { backgroundColor: getMealTypeColor(item.mealType) },
+            styles.mealIconContainer,
+            { backgroundColor: `${config.color}15` },
           ]}
         >
-          <Ionicons
-            name={getMealTypeIcon(item.mealType)}
-            size={12}
-            color="white"
-            style={styles.mealTypeIcon}
-          />
-          <Text style={styles.mealTypeText}>
-            {item.mealType.charAt(0).toUpperCase() + item.mealType.slice(1)}
-          </Text>
+          <Ionicons name={config.icon} size={20} color={config.color} />
         </View>
-      </View>
 
-      <View style={styles.detailsColumn}>
-        <Text style={styles.nameText}>{item.name}</Text>
-        <View style={styles.macrosRow}>
-          <Text style={styles.calorieText}>{item.calories} cal</Text>
-          <Text style={styles.macroText}>{item.protein}g protein</Text>
-          <Text style={styles.macroText}>{item.carbs}g carbs</Text>
-          <Text style={styles.macroText}>{item.fat}g fat</Text>
+        <View style={styles.mainContent}>
+          <View style={styles.topRow}>
+            <View style={styles.nameContainer}>
+              <Text style={styles.nameText} numberOfLines={1}>
+                {item.name}
+              </Text>
+              <View style={styles.timeRow}>
+                <Text style={styles.timeText}>
+                  {formatTime(item.timestamp)}
+                </Text>
+                <Text style={styles.separator}>·</Text>
+                <Text style={[styles.mealTypeText, { color: config.color }]}>
+                  {item.mealType.charAt(0).toUpperCase() +
+                    item.mealType.slice(1)}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.caloriesBadge}>
+              <Ionicons name="flame" size={14} color={colors.primary} />
+              <Text style={styles.caloriesValue}>{item.calories}</Text>
+            </View>
+          </View>
+
+          <View style={styles.macrosRow}>
+            <View style={styles.macroItem}>
+              <Text style={styles.macroLabel}>Protein</Text>
+              <Text style={styles.macroValue}>{item.protein}g</Text>
+            </View>
+            <Text style={styles.macroDivider}>·</Text>
+            <View style={styles.macroItem}>
+              <Text style={styles.macroLabel}>Carbs</Text>
+              <Text style={styles.macroValue}>{item.carbs}g</Text>
+            </View>
+            <Text style={styles.macroDivider}>·</Text>
+            <View style={styles.macroItem}>
+              <Text style={styles.macroLabel}>Fat</Text>
+              <Text style={styles.macroValue}>{item.fat}g</Text>
+            </View>
+          </View>
         </View>
-      </View>
-    </View>
+      </TouchableOpacity>
+
+      <ActionSheet
+        visible={showActionSheet}
+        onClose={() => setShowActionSheet(false)}
+        title={item.name}
+        options={actionOptions}
+      />
+
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDelete}
+        title="Delete Meal?"
+        message="This will permanently remove this meal from your food log. This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Keep"
+        destructive
+      />
+
+      <EditMealModal
+        visible={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        item={item}
+        onSave={handleSaveEdit}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: "row",
-    backgroundColor: "white",
-    borderRadius: 12,
-    padding: 12,
-    marginHorizontal: 16,
-    marginVertical: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.xs,
+    padding: spacing.md,
+    ...shadows.sm,
   },
-  timeColumn: {
-    width: 80,
-    marginRight: 12,
+  mealIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: borderRadius.md,
+    alignItems: "center",
     justifyContent: "center",
+    marginRight: spacing.md,
+  },
+  mainContent: {
+    flex: 1,
+  },
+  topRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    marginBottom: spacing.sm,
+  },
+  nameContainer: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  nameText: {
+    fontSize: typography.base,
+    fontFamily: typography.fontSemibold,
+    color: colors.textPrimary,
+    marginBottom: 4,
+  },
+  timeRow: {
+    flexDirection: "row",
     alignItems: "center",
   },
   timeText: {
-    fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
-    marginBottom: 6,
+    fontSize: typography.xs,
+    fontFamily: typography.fontRegular,
+    color: colors.textMuted,
   },
-  mealTypeBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 12,
+  separator: {
+    fontSize: typography.xs,
+    color: colors.textMuted,
+    marginHorizontal: 6,
   },
   mealTypeText: {
-    color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
+    fontSize: typography.xs,
+    fontFamily: typography.fontMedium,
   },
-  detailsColumn: {
-    flex: 1,
+  caloriesBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.primaryBg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: borderRadius.md,
+    gap: 4,
   },
-  nameText: {
-    fontSize: 17,
-    fontWeight: "600",
-    color: "#111",
-    marginBottom: 4,
+  caloriesValue: {
+    fontSize: typography.base,
+    fontFamily: typography.fontBold,
+    color: colors.primary,
   },
   macrosRow: {
     flexDirection: "row",
-    flexWrap: "wrap",
     alignItems: "center",
   },
-  calorieText: {
-    fontSize: 15,
-    fontWeight: "500",
-    color: "#5E60CE",
-    marginRight: 12,
+  macroItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
-  macroText: {
-    fontSize: 14,
-    color: "#666",
-    marginRight: 8,
+  macroDivider: {
+    fontSize: typography.xs,
+    color: colors.textMuted,
+    marginHorizontal: spacing.sm,
   },
-  mealTypeIcon: {
-    marginRight: 4,
+  macroLabel: {
+    fontSize: typography.xs,
+    fontFamily: typography.fontRegular,
+    color: colors.textMuted,
+  },
+  macroValue: {
+    fontSize: typography.xs,
+    fontFamily: typography.fontSemibold,
+    color: colors.textPrimary,
   },
 });
