@@ -16,6 +16,13 @@ import { router } from "expo-router";
 import { FoodItem } from "../lib/models/food";
 import { getFoodNutritionInfo, isGeminiInitialized } from "../lib/gemini";
 import { useFoodContext } from "../lib/FoodContext";
+import {
+  colors,
+  spacing,
+  typography,
+  shadows,
+  borderRadius,
+} from "../lib/theme";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
@@ -88,6 +95,7 @@ export default function AddMealScreen() {
       const newFoodItem: FoodItem = {
         id: Date.now().toString(),
         name: nutritionInfo.name || description,
+        description: description.trim(),
         calories: nutritionInfo.calories,
         protein: nutritionInfo.protein,
         carbs: nutritionInfo.carbs,
@@ -96,8 +104,8 @@ export default function AddMealScreen() {
         mealType: selectedMealType,
       };
 
-      // Save to context
-      addFoodItem(newFoodItem);
+      // Save to context (now persists to SQLite)
+      await addFoodItem(newFoodItem);
       console.log("New food item added:", newFoodItem);
 
       // Navigate back to home
@@ -200,6 +208,16 @@ export default function AddMealScreen() {
                 Tip: Include portions and cooking methods for better estimates
               </Text>
             </View>
+            <View style={styles.tipContainer}>
+              <Ionicons
+                name="language-outline"
+                size={18}
+                color={colors.primary}
+              />
+              <Text style={styles.tipText}>
+                You can use local food names in any language!
+              </Text>
+            </View>
           </View>
         </ScrollView>
 
@@ -239,7 +257,7 @@ export default function AddMealScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f8f9fa",
+    backgroundColor: colors.background,
   },
   keyboardView: {
     flex: 1,
@@ -248,121 +266,109 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: spacing.lg,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: spacing.xxl,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#222",
-    marginBottom: 4,
+    fontSize: typography.xl,
+    fontWeight: typography.bold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   sectionSubtitle: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 16,
+    fontSize: typography.sm,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
   },
   suggestionText: {
-    fontWeight: "600",
-    color: "#5E60CE",
+    fontWeight: typography.semibold,
+    color: colors.primary,
   },
   mealOptionsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    gap: spacing.md,
   },
   mealOption: {
     width: "47%",
-    backgroundColor: "white",
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     alignItems: "center",
     borderWidth: 2,
     borderColor: "transparent",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    ...shadows.sm,
   },
   mealOptionSelected: {
-    backgroundColor: "#5E60CE",
-    borderColor: "#5E60CE",
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   mealOptionLabel: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    marginTop: 8,
+    fontSize: typography.base,
+    fontWeight: typography.semibold,
+    color: colors.textPrimary,
+    marginTop: spacing.sm,
   },
   mealOptionLabelSelected: {
-    color: "white",
+    color: colors.textInverse,
   },
   mealOptionTime: {
-    fontSize: 12,
-    color: "#888",
-    marginTop: 4,
+    fontSize: typography.xs,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   mealOptionTimeSelected: {
     color: "rgba(255, 255, 255, 0.8)",
   },
   inputContainer: {
-    backgroundColor: "white",
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    ...shadows.sm,
   },
   textInput: {
-    fontSize: 16,
-    color: "#333",
+    fontSize: typography.base,
+    color: colors.textPrimary,
     minHeight: 120,
     lineHeight: 24,
   },
   tipContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 12,
-    paddingHorizontal: 4,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.xs,
   },
   tipText: {
-    fontSize: 13,
-    color: "#666",
-    marginLeft: 8,
+    fontSize: typography.sm,
+    color: colors.textSecondary,
+    marginLeft: spacing.sm,
     flex: 1,
   },
   buttonContainer: {
-    padding: 16,
-    backgroundColor: "#f8f9fa",
+    padding: spacing.lg,
+    backgroundColor: colors.background,
   },
   addButton: {
-    backgroundColor: "#5E60CE",
-    borderRadius: 16,
-    padding: 18,
+    backgroundColor: colors.primary,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#5E60CE",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
+    ...shadows.xl,
   },
   addButtonDisabled: {
-    backgroundColor: "#aaa",
+    backgroundColor: colors.textMuted,
     shadowOpacity: 0,
   },
   buttonIcon: {
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   addButtonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
+    color: colors.textInverse,
+    fontSize: typography.lg,
+    fontWeight: typography.bold,
   },
 });

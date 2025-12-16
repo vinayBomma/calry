@@ -1,6 +1,7 @@
 import { StyleSheet, View, Text } from "react-native";
 import { DailyStats } from "../lib/models/food";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
+import { colors, spacing, typography, shadows, borderRadius } from "../lib/theme";
 
 interface StatsCardProps {
   stats: DailyStats;
@@ -11,160 +12,240 @@ export function StatsCard({ stats }: StatsCardProps) {
     Math.round((stats.caloriesTotal / stats.calorieGoal) * 100),
     100
   );
-
-  const formatMacro = (current: number, goal: number) => {
-    return `${current}g / ${goal}g`;
-  };
+  const remaining = Math.max(stats.calorieGoal - stats.caloriesTotal, 0);
 
   return (
     <View style={styles.card}>
-      <View style={styles.calorieContainer}>
-        <Text style={styles.calorieTitle}>Calories</Text>
-        <Text style={styles.calorieValue}>
-          {stats.caloriesTotal}{" "}
-          <Text style={styles.goalText}>/ {stats.calorieGoal}</Text>
-        </Text>
-
-        <View style={styles.progressBarContainer}>
-          <View
-            style={[styles.progressBar, { width: `${caloriePercentage}%` }]}
-          />
+      {/* Calorie Header */}
+      <View style={styles.calorieHeader}>
+        <View style={styles.calorieInfo}>
+          <View style={styles.calorieTitleRow}>
+            <Ionicons name="flame" size={20} color={colors.primary} />
+            <Text style={styles.calorieTitle}>Calories</Text>
+          </View>
+          <View style={styles.calorieValues}>
+            <Text style={styles.caloriesCurrent}>{stats.caloriesTotal}</Text>
+            <Text style={styles.caloriesGoal}> / {stats.calorieGoal} kcal</Text>
+          </View>
         </View>
-        <Text style={styles.percentageText}>{caloriePercentage}%</Text>
+        <View style={styles.percentageBadge}>
+          <Text style={styles.percentageText}>{caloriePercentage}%</Text>
+        </View>
       </View>
 
+      {/* Calorie Progress Bar */}
+      <View style={styles.calorieProgressContainer}>
+        <View
+          style={[
+            styles.calorieProgress,
+            { 
+              width: `${caloriePercentage}%`,
+              backgroundColor: caloriePercentage >= 100 ? colors.warning : colors.primary,
+            },
+          ]}
+        />
+      </View>
+      
+      <View style={styles.remainingRow}>
+        <Ionicons 
+          name={remaining > 0 ? "trending-up" : "checkmark-circle"} 
+          size={14} 
+          color={remaining > 0 ? colors.success : colors.warning} 
+        />
+        <Text style={[styles.remainingText, { color: remaining > 0 ? colors.success : colors.warning }]}>
+          {remaining > 0 ? `${remaining} kcal remaining` : 'Daily goal reached!'}
+        </Text>
+      </View>
+
+      {/* Macros section */}
       <View style={styles.macrosContainer}>
-        <MacroItem
+        <MacroCard
           label="Protein"
-          value={formatMacro(stats.proteinTotal, stats.proteinGoal)}
-          color="#FF9800"
+          current={stats.proteinTotal}
+          goal={stats.proteinGoal}
+          color={colors.protein}
+          icon="barbell-outline"
         />
-        <MacroItem
+        <MacroCard
           label="Carbs"
-          value={formatMacro(stats.carbsTotal, stats.carbsGoal)}
-          color="#4CAF50"
+          current={stats.carbsTotal}
+          goal={stats.carbsGoal}
+          color={colors.carbs}
+          icon="leaf-outline"
         />
-        <MacroItem
+        <MacroCard
           label="Fat"
-          value={formatMacro(stats.fatTotal, stats.fatGoal)}
-          color="#2196F3"
+          current={stats.fatTotal}
+          goal={stats.fatGoal}
+          color={colors.fat}
+          icon="water-outline"
         />
       </View>
     </View>
   );
 }
 
-interface MacroItemProps {
+interface MacroCardProps {
   label: string;
-  value: string;
+  current: number;
+  goal: number;
   color: string;
+  icon: keyof typeof Ionicons.glyphMap;
 }
 
-function MacroItem({ label, value, color }: MacroItemProps) {
-  // Get the appropriate icon for each macro
-  const getIconName = () => {
-    switch (label) {
-      case "Protein":
-        return "food-steak";
-      case "Carbs":
-        return "bread-slice";
-      case "Fat":
-        return "oil";
-      default:
-        return "food";
-    }
-  };
-
+function MacroCard({ label, current, goal, color, icon }: MacroCardProps) {
+  const percentage = Math.min(Math.round((current / goal) * 100), 100);
+  
   return (
-    <View style={styles.macroItem}>
-      <MaterialCommunityIcons
-        name={getIconName()}
-        size={18}
-        color={color}
-        style={styles.macroIcon}
-      />
-      <Text style={styles.macroLabel}>{label}</Text>
-      <Text style={styles.macroValue}>{value}</Text>
+    <View style={styles.macroCard}>
+      <View style={styles.macroHeader}>
+        <View style={[styles.macroIconContainer, { backgroundColor: `${color}20` }]}>
+          <Ionicons name={icon} size={14} color={color} />
+        </View>
+        <Text style={styles.macroLabel}>{label}</Text>
+      </View>
+      <Text style={styles.macroValue}>{current}<Text style={styles.macroUnit}>g</Text></Text>
+      <View style={styles.macroProgressContainer}>
+        <View
+          style={[
+            styles.macroProgress,
+            { width: `${percentage}%`, backgroundColor: color },
+          ]}
+        />
+      </View>
+      <Text style={styles.macroGoalText}>{percentage}% of {goal}g</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "white",
-    borderRadius: 16,
-    padding: 16,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.xl,
+    padding: spacing.lg,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    ...shadows.md,
   },
-  calorieContainer: {
-    marginBottom: 16,
-  },
-  calorieTitle: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-  },
-  calorieValue: {
-    fontSize: 28,
-    fontWeight: "bold",
-    color: "#111",
-    marginVertical: 4,
-  },
-  goalText: {
-    fontSize: 20,
-    fontWeight: "normal",
-    color: "#666",
-  },
-  progressBarContainer: {
-    height: 8,
-    backgroundColor: "#eee",
-    borderRadius: 4,
-    marginTop: 8,
-    overflow: "hidden",
-  },
-  progressBar: {
-    height: "100%",
-    backgroundColor: "#5E60CE",
-    borderRadius: 4,
-  },
-  percentageText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#5E60CE",
-    marginTop: 4,
-    textAlign: "right",
-  },
-  macrosContainer: {
-    marginTop: 8,
-  },
-  macroItem: {
+  calorieHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 6,
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: spacing.md,
   },
-  macroIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 8,
-  },
-  macroLabel: {
-    fontSize: 16,
-    color: "#333",
+  calorieInfo: {
     flex: 1,
   },
-  macroValue: {
-    fontSize: 16,
-    color: "#333",
-    fontWeight: "500",
+  calorieTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.xs,
   },
-  macroIcon: {
-    marginRight: 8,
+  calorieTitle: {
+    fontSize: typography.sm,
+    fontFamily: typography.fontMedium,
+    color: colors.textSecondary,
+    marginLeft: spacing.xs,
+  },
+  calorieValues: {
+    flexDirection: "row",
+    alignItems: "baseline",
+  },
+  caloriesCurrent: {
+    fontSize: typography.xxxl,
+    fontFamily: typography.fontBold,
+    color: colors.textPrimary,
+  },
+  caloriesGoal: {
+    fontSize: typography.base,
+    fontFamily: typography.fontRegular,
+    color: colors.textMuted,
+  },
+  percentageBadge: {
+    backgroundColor: colors.primaryBg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+  },
+  percentageText: {
+    fontSize: typography.lg,
+    fontFamily: typography.fontBold,
+    color: colors.primary,
+  },
+  calorieProgressContainer: {
+    height: 8,
+    backgroundColor: colors.divider,
+    borderRadius: borderRadius.full,
+    overflow: "hidden",
+    marginBottom: spacing.sm,
+  },
+  calorieProgress: {
+    height: "100%",
+    borderRadius: borderRadius.full,
+  },
+  remainingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.lg,
+  },
+  remainingText: {
+    fontSize: typography.xs,
+    fontFamily: typography.fontMedium,
+    marginLeft: spacing.xs,
+  },
+  macrosContainer: {
+    flexDirection: "row",
+    gap: spacing.sm,
+  },
+  macroCard: {
+    flex: 1,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+  },
+  macroHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: spacing.xs,
+  },
+  macroIconContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: spacing.xs,
+  },
+  macroLabel: {
+    fontSize: typography.xs,
+    fontFamily: typography.fontMedium,
+    color: colors.textMuted,
+  },
+  macroValue: {
+    fontSize: typography.xl,
+    fontFamily: typography.fontBold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
+  },
+  macroUnit: {
+    fontSize: typography.sm,
+    fontFamily: typography.fontRegular,
+    color: colors.textMuted,
+  },
+  macroProgressContainer: {
+    height: 4,
+    backgroundColor: colors.divider,
+    borderRadius: borderRadius.full,
+    overflow: "hidden",
+    marginBottom: spacing.xs,
+  },
+  macroProgress: {
+    height: "100%",
+    borderRadius: borderRadius.full,
+  },
+  macroGoalText: {
+    fontSize: 10,
+    fontFamily: typography.fontRegular,
+    color: colors.textMuted,
   },
 });
