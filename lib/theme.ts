@@ -3,7 +3,7 @@
  * Balanced, informative yet elegant
  */
 
-export const colors = {
+export const lightColors = {
   // Primary brand color - Fresh green
   primary: "#439775",
   primaryLight: "#6BB899",
@@ -44,7 +44,59 @@ export const colors = {
   
   // Shadows
   shadow: "#18181B",
+  
+  // Modal
+  overlay: "rgba(0, 0, 0, 0.5)",
 };
+
+export const darkColors = {
+  // Primary brand color - Fresh green (slightly brighter for dark mode)
+  primary: "#4CAF82",
+  primaryLight: "#6BB899",
+  primaryMuted: "#3D8B6A",
+  primaryBg: "#1A2F25",
+  primaryDark: "#357A5E",
+  
+  // Background colors
+  background: "#0F0F0F",
+  surface: "#1A1A1A",
+  surfaceSecondary: "#252525",
+  
+  // Text colors
+  textPrimary: "#FAFAFA",
+  textSecondary: "#A1A1AA",
+  textMuted: "#6B6B6B",
+  textInverse: "#18181B",
+  
+  // Macro colors - Same but slightly adjusted for dark mode
+  protein: "#A78BFA",  // Lighter purple
+  carbs: "#FBBF24",    // Lighter amber
+  fat: "#60A5FA",      // Lighter blue
+  
+  // Meal type colors
+  breakfast: "#FBBF24",
+  lunch: "#34D399",
+  dinner: "#818CF8",
+  snack: "#F472B6",
+  
+  // Semantic
+  success: "#34D399",
+  warning: "#FBBF24",
+  error: "#F87171",
+  
+  // Border and dividers
+  border: "#2A2A2A",
+  divider: "#222222",
+  
+  // Shadows
+  shadow: "#000000",
+  
+  // Modal
+  overlay: "rgba(0, 0, 0, 0.7)",
+};
+
+// Default to light colors for backwards compatibility
+export const colors = lightColors;
 
 export const spacing = {
   xs: 4,
