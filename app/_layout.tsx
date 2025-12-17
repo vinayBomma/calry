@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { useCallback } from "react";
 import { ActivityIndicator, View } from "react-native";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { FoodProvider } from "../lib/FoodContext";
 import { colors } from "../lib/theme";
 
@@ -31,44 +32,52 @@ export default function RootLayout() {
   }
 
   return (
-    <FoodProvider>
-      <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerStyle: {
-            backgroundColor: colors.background,
-          },
-          headerTintColor: colors.textPrimary,
-          headerTitleStyle: {
-            fontWeight: "600",
-          },
-          headerShadowVisible: false,
-          contentStyle: {
-            backgroundColor: colors.background,
-          },
-        }}
-      >
-        <Stack.Screen
-          name="(tabs)"
-          options={{
-            headerShown: false,
+    <SafeAreaProvider>
+      <FoodProvider>
+        <StatusBar style="dark" />
+        <Stack
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: colors.background,
+            },
+            headerTintColor: colors.textPrimary,
+            headerTitleStyle: {
+              fontWeight: "600",
+            },
+            headerShadowVisible: false,
+            contentStyle: {
+              backgroundColor: colors.background,
+            },
           }}
-        />
-        <Stack.Screen
-          name="index"
-          options={{
-            headerShown: false,
-          }}
-        />
-        <Stack.Screen
-          name="add-meal"
-          options={{
-            title: "Add Meal",
-            presentation: "modal",
-            headerShown: true,
-          }}
-        />
-      </Stack>
-    </FoodProvider>
+        >
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="index"
+            options={{
+              headerShown: false,
+            }}
+          />
+          <Stack.Screen
+            name="add-meal"
+            options={{
+              title: "Add Meal",
+              presentation: "modal",
+              headerShown: true,
+            }}
+          />
+          <Stack.Screen
+            name="onboarding"
+            options={{
+              headerShown: false,
+            }}
+          />
+        </Stack>
+      </FoodProvider>
+    </SafeAreaProvider>
   );
 }
