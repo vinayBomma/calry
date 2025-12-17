@@ -16,13 +16,8 @@ import { router } from "expo-router";
 import { FoodItem } from "../lib/models/food";
 import { getFoodNutritionInfo, isGeminiInitialized } from "../lib/gemini";
 import { useFoodContext } from "../lib/FoodContext";
-import {
-  colors,
-  spacing,
-  typography,
-  shadows,
-  borderRadius,
-} from "../lib/theme";
+import { useTheme } from "../lib/ThemeContext";
+import { spacing, typography, shadows, borderRadius } from "../lib/theme";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
@@ -72,6 +67,7 @@ const getSuggestedMealType = (): MealType => {
 
 export default function AddMealScreen() {
   const { addFoodItem } = useFoodContext();
+  const { colors } = useTheme();
   const [selectedMealType, setSelectedMealType] = useState<MealType>(
     getSuggestedMealType()
   );
@@ -116,6 +112,8 @@ export default function AddMealScreen() {
       setIsAnalyzing(false);
     }
   };
+
+  const styles = createStyles(colors);
 
   return (
     <SafeAreaView style={styles.container} edges={["bottom"]}>
@@ -254,121 +252,122 @@ export default function AddMealScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: spacing.lg,
-  },
-  section: {
-    marginBottom: spacing.xxl,
-  },
-  sectionTitle: {
-    fontSize: typography.xl,
-    fontWeight: typography.bold,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  sectionSubtitle: {
-    fontSize: typography.sm,
-    color: colors.textSecondary,
-    marginBottom: spacing.lg,
-  },
-  suggestionText: {
-    fontWeight: typography.semibold,
-    color: colors.primary,
-  },
-  mealOptionsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.md,
-  },
-  mealOption: {
-    width: "47%",
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    alignItems: "center",
-    borderWidth: 2,
-    borderColor: "transparent",
-    ...shadows.sm,
-  },
-  mealOptionSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  mealOptionLabel: {
-    fontSize: typography.base,
-    fontWeight: typography.semibold,
-    color: colors.textPrimary,
-    marginTop: spacing.sm,
-  },
-  mealOptionLabelSelected: {
-    color: colors.textInverse,
-  },
-  mealOptionTime: {
-    fontSize: typography.xs,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-  mealOptionTimeSelected: {
-    color: "rgba(255, 255, 255, 0.8)",
-  },
-  inputContainer: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    ...shadows.sm,
-  },
-  textInput: {
-    fontSize: typography.base,
-    color: colors.textPrimary,
-    minHeight: 120,
-    lineHeight: 24,
-  },
-  tipContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: spacing.md,
-    paddingHorizontal: spacing.xs,
-  },
-  tipText: {
-    fontSize: typography.sm,
-    color: colors.textSecondary,
-    marginLeft: spacing.sm,
-    flex: 1,
-  },
-  buttonContainer: {
-    padding: spacing.lg,
-    backgroundColor: colors.background,
-  },
-  addButton: {
-    backgroundColor: colors.primary,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadows.xl,
-  },
-  addButtonDisabled: {
-    backgroundColor: colors.textMuted,
-    shadowOpacity: 0,
-  },
-  buttonIcon: {
-    marginRight: spacing.sm,
-  },
-  addButtonText: {
-    color: colors.textInverse,
-    fontSize: typography.lg,
-    fontWeight: typography.bold,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    keyboardView: {
+      flex: 1,
+    },
+    scrollView: {
+      flex: 1,
+    },
+    scrollContent: {
+      padding: spacing.lg,
+    },
+    section: {
+      marginBottom: spacing.xxl,
+    },
+    sectionTitle: {
+      fontSize: typography.xl,
+      fontWeight: typography.bold,
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+    },
+    sectionSubtitle: {
+      fontSize: typography.sm,
+      color: colors.textSecondary,
+      marginBottom: spacing.lg,
+    },
+    suggestionText: {
+      fontWeight: typography.semibold,
+      color: colors.primary,
+    },
+    mealOptionsContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.md,
+    },
+    mealOption: {
+      width: "47%",
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      alignItems: "center",
+      borderWidth: 2,
+      borderColor: "transparent",
+      ...shadows.sm,
+    },
+    mealOptionSelected: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    mealOptionLabel: {
+      fontSize: typography.base,
+      fontWeight: typography.semibold,
+      color: colors.textPrimary,
+      marginTop: spacing.sm,
+    },
+    mealOptionLabelSelected: {
+      color: colors.textInverse,
+    },
+    mealOptionTime: {
+      fontSize: typography.xs,
+      color: colors.textMuted,
+      marginTop: spacing.xs,
+    },
+    mealOptionTimeSelected: {
+      color: "rgba(255, 255, 255, 0.8)",
+    },
+    inputContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      ...shadows.sm,
+    },
+    textInput: {
+      fontSize: typography.base,
+      color: colors.textPrimary,
+      minHeight: 120,
+      lineHeight: 24,
+    },
+    tipContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginTop: spacing.md,
+      paddingHorizontal: spacing.xs,
+    },
+    tipText: {
+      fontSize: typography.sm,
+      color: colors.textSecondary,
+      marginLeft: spacing.sm,
+      flex: 1,
+    },
+    buttonContainer: {
+      padding: spacing.lg,
+      backgroundColor: colors.background,
+    },
+    addButton: {
+      backgroundColor: colors.primary,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      ...shadows.xl,
+    },
+    addButtonDisabled: {
+      backgroundColor: colors.textMuted,
+      shadowOpacity: 0,
+    },
+    buttonIcon: {
+      marginRight: spacing.sm,
+    },
+    addButtonText: {
+      color: colors.textInverse,
+      fontSize: typography.lg,
+      fontWeight: typography.bold,
+    },
+  });

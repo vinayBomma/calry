@@ -6,29 +6,24 @@ import { useFoodContext } from "../lib/FoodContext";
 import { ActionSheet } from "./ActionSheet";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EditMealModal } from "./EditMealModal";
-import {
-  colors,
-  spacing,
-  typography,
-  shadows,
-  borderRadius,
-} from "../lib/theme";
+import { useTheme } from "../lib/ThemeContext";
+import { spacing, typography, shadows, borderRadius } from "../lib/theme";
 
 interface FoodLogItemProps {
   item: FoodItem;
 }
 
-const mealTypeConfig: Record<
-  string,
-  { color: string; icon: keyof typeof Ionicons.glyphMap }
-> = {
+const getMealTypeConfig = (
+  colors: any
+): Record<string, { color: string; icon: keyof typeof Ionicons.glyphMap }> => ({
   breakfast: { color: colors.breakfast, icon: "sunny-outline" },
   lunch: { color: colors.lunch, icon: "restaurant-outline" },
   dinner: { color: colors.dinner, icon: "moon-outline" },
   snack: { color: colors.snack, icon: "cafe-outline" },
-};
+});
 
 export function FoodLogItem({ item }: FoodLogItemProps) {
+  const { colors } = useTheme();
   const { updateFoodItem, removeFoodItem } = useFoodContext();
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -43,10 +38,13 @@ export function FoodLogItem({ item }: FoodLogItemProps) {
     });
   };
 
+  const mealTypeConfig = getMealTypeConfig(colors);
   const config = mealTypeConfig[item.mealType] || {
     color: colors.primary,
     icon: "nutrition-outline" as const,
   };
+
+  const styles = createStyles(colors);
 
   const handleDelete = async () => {
     try {
@@ -161,97 +159,98 @@ export function FoodLogItem({ item }: FoodLogItemProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: "row",
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    marginHorizontal: spacing.lg,
-    marginVertical: spacing.xs,
-    padding: spacing.md,
-    ...shadows.sm,
-  },
-  mealIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.md,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: spacing.md,
-  },
-  mainContent: {
-    flex: 1,
-  },
-  topRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    marginBottom: spacing.sm,
-  },
-  nameContainer: {
-    flex: 1,
-    marginRight: spacing.sm,
-  },
-  nameText: {
-    fontSize: typography.base,
-    fontFamily: typography.fontSemibold,
-    color: colors.textPrimary,
-    marginBottom: 4,
-  },
-  timeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  timeText: {
-    fontSize: typography.xs,
-    fontFamily: typography.fontRegular,
-    color: colors.textMuted,
-  },
-  separator: {
-    fontSize: typography.xs,
-    color: colors.textMuted,
-    marginHorizontal: 6,
-  },
-  mealTypeText: {
-    fontSize: typography.xs,
-    fontFamily: typography.fontMedium,
-  },
-  caloriesBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.primaryBg,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.md,
-    gap: 4,
-  },
-  caloriesValue: {
-    fontSize: typography.base,
-    fontFamily: typography.fontBold,
-    color: colors.primary,
-  },
-  macrosRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  macroItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  macroDivider: {
-    fontSize: typography.xs,
-    color: colors.textMuted,
-    marginHorizontal: spacing.sm,
-  },
-  macroLabel: {
-    fontSize: typography.xs,
-    fontFamily: typography.fontRegular,
-    color: colors.textMuted,
-  },
-  macroValue: {
-    fontSize: typography.xs,
-    fontFamily: typography.fontSemibold,
-    color: colors.textPrimary,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: "row",
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      marginHorizontal: spacing.lg,
+      marginVertical: spacing.xs,
+      padding: spacing.md,
+      ...shadows.sm,
+    },
+    mealIconContainer: {
+      width: 44,
+      height: 44,
+      borderRadius: borderRadius.md,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: spacing.md,
+    },
+    mainContent: {
+      flex: 1,
+    },
+    topRow: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      marginBottom: spacing.sm,
+    },
+    nameContainer: {
+      flex: 1,
+      marginRight: spacing.sm,
+    },
+    nameText: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.textPrimary,
+      marginBottom: 4,
+    },
+    timeRow: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    timeText: {
+      fontSize: typography.xs,
+      fontFamily: typography.fontRegular,
+      color: colors.textMuted,
+    },
+    separator: {
+      fontSize: typography.xs,
+      color: colors.textMuted,
+      marginHorizontal: 6,
+    },
+    mealTypeText: {
+      fontSize: typography.xs,
+      fontFamily: typography.fontMedium,
+    },
+    caloriesBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.primaryBg,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.md,
+      gap: 4,
+    },
+    caloriesValue: {
+      fontSize: typography.base,
+      fontFamily: typography.fontBold,
+      color: colors.primary,
+    },
+    macrosRow: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    macroItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+    },
+    macroDivider: {
+      fontSize: typography.xs,
+      color: colors.textMuted,
+      marginHorizontal: spacing.sm,
+    },
+    macroLabel: {
+      fontSize: typography.xs,
+      fontFamily: typography.fontRegular,
+      color: colors.textMuted,
+    },
+    macroValue: {
+      fontSize: typography.xs,
+      fontFamily: typography.fontSemibold,
+      color: colors.textPrimary,
+    },
+  });

@@ -5,7 +5,60 @@ import { useCallback } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { FoodProvider } from "../lib/FoodContext";
-import { colors } from "../lib/theme";
+import { ThemeProvider, useTheme } from "../lib/ThemeContext";
+import { lightColors } from "../lib/theme";
+
+function RootLayoutContent() {
+  const { colors, isDark } = useTheme();
+
+  return (
+    <>
+      <StatusBar style={isDark ? "light" : "dark"} />
+      <Stack
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: {
+            fontWeight: "600",
+          },
+          headerShadowVisible: false,
+          contentStyle: {
+            backgroundColor: colors.background,
+          },
+        }}
+      >
+        <Stack.Screen
+          name="(tabs)"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="index"
+          options={{
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="add-meal"
+          options={{
+            title: "Add Meal",
+            presentation: "modal",
+            headerShown: true,
+          }}
+        />
+        <Stack.Screen
+          name="onboarding"
+          options={{
+            headerShown: false,
+          }}
+        />
+      </Stack>
+    </>
+  );
+}
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -23,61 +76,21 @@ export default function RootLayout() {
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
-          backgroundColor: colors.background,
+          backgroundColor: lightColors.background,
         }}
       >
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={lightColors.primary} />
       </View>
     );
   }
 
   return (
     <SafeAreaProvider>
-      <FoodProvider>
-        <StatusBar style="dark" />
-        <Stack
-          screenOptions={{
-            headerStyle: {
-              backgroundColor: colors.background,
-            },
-            headerTintColor: colors.textPrimary,
-            headerTitleStyle: {
-              fontWeight: "600",
-            },
-            headerShadowVisible: false,
-            contentStyle: {
-              backgroundColor: colors.background,
-            },
-          }}
-        >
-          <Stack.Screen
-            name="(tabs)"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="index"
-            options={{
-              headerShown: false,
-            }}
-          />
-          <Stack.Screen
-            name="add-meal"
-            options={{
-              title: "Add Meal",
-              presentation: "modal",
-              headerShown: true,
-            }}
-          />
-          <Stack.Screen
-            name="onboarding"
-            options={{
-              headerShown: false,
-            }}
-          />
-        </Stack>
-      </FoodProvider>
+      <ThemeProvider>
+        <FoodProvider>
+          <RootLayoutContent />
+        </FoodProvider>
+      </ThemeProvider>
     </SafeAreaProvider>
   );
 }

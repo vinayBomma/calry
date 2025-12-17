@@ -15,13 +15,8 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { FoodItem } from "../lib/models/food";
 import { getFoodNutritionInfo } from "../lib/gemini";
-import {
-  colors,
-  spacing,
-  typography,
-  shadows,
-  borderRadius,
-} from "../lib/theme";
+import { useTheme } from "../lib/ThemeContext";
+import { spacing, typography, shadows, borderRadius } from "../lib/theme";
 
 type MealType = "breakfast" | "lunch" | "dinner" | "snack";
 
@@ -51,6 +46,7 @@ export function EditMealModal({
   item,
   onSave,
 }: EditMealModalProps) {
+  const { colors } = useTheme();
   const [description, setDescription] = useState(item.description || item.name);
   const [selectedMealType, setSelectedMealType] = useState<MealType>(
     item.mealType
@@ -101,6 +97,8 @@ export function EditMealModal({
       setIsAnalyzing(false);
     }
   };
+
+  const styles = createStyles(colors);
 
   return (
     <Modal
@@ -260,158 +258,159 @@ export function EditMealModal({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-    backgroundColor: colors.surface,
-  },
-  headerButton: {
-    minWidth: 60,
-  },
-  headerTitle: {
-    fontSize: typography.lg,
-    fontFamily: typography.fontSemibold,
-    color: colors.textPrimary,
-  },
-  cancelText: {
-    fontSize: typography.base,
-    fontFamily: typography.fontMedium,
-    color: colors.textSecondary,
-  },
-  saveText: {
-    fontSize: typography.base,
-    fontFamily: typography.fontSemibold,
-    color: colors.primary,
-    textAlign: "right",
-  },
-  saveTextDisabled: {
-    color: colors.textMuted,
-  },
-  content: {
-    flex: 1,
-  },
-  contentContainer: {
-    padding: spacing.lg,
-  },
-  section: {
-    marginBottom: spacing.xl,
-  },
-  sectionTitle: {
-    fontSize: typography.base,
-    fontFamily: typography.fontSemibold,
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  sectionSubtitle: {
-    fontSize: typography.sm,
-    fontFamily: typography.fontRegular,
-    color: colors.textSecondary,
-    marginBottom: spacing.md,
-  },
-  inputContainer: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.divider,
-    ...shadows.sm,
-  },
-  textInput: {
-    padding: spacing.md,
-    fontSize: typography.base,
-    fontFamily: typography.fontRegular,
-    color: colors.textPrimary,
-    minHeight: 80,
-  },
-  reanalyzeNote: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.sm,
-  },
-  reanalyzeText: {
-    fontSize: typography.sm,
-    fontFamily: typography.fontMedium,
-    color: colors.primary,
-  },
-  mealTypeGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  mealTypeOption: {
-    flex: 1,
-    minWidth: "45%",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    borderWidth: 2,
-    borderColor: colors.divider,
-  },
-  mealTypeSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryBg,
-  },
-  mealTypeLabel: {
-    fontSize: typography.sm,
-    fontFamily: typography.fontMedium,
-    color: colors.textSecondary,
-  },
-  mealTypeLabelSelected: {
-    color: colors.primary,
-  },
-  nutritionCard: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    ...shadows.sm,
-  },
-  nutritionRow: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginVertical: spacing.xs,
-  },
-  nutritionItem: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-  },
-  nutritionValue: {
-    fontSize: typography.base,
-    fontFamily: typography.fontSemibold,
-    color: colors.textPrimary,
-  },
-  nutritionLabel: {
-    fontSize: typography.sm,
-    fontFamily: typography.fontRegular,
-    color: colors.textMuted,
-  },
-  errorContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    backgroundColor: "#FEE2E2",
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-  },
-  errorText: {
-    fontSize: typography.sm,
-    fontFamily: typography.fontMedium,
-    color: colors.error,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+      backgroundColor: colors.surface,
+    },
+    headerButton: {
+      minWidth: 60,
+    },
+    headerTitle: {
+      fontSize: typography.lg,
+      fontFamily: typography.fontSemibold,
+      color: colors.textPrimary,
+    },
+    cancelText: {
+      fontSize: typography.base,
+      fontFamily: typography.fontMedium,
+      color: colors.textSecondary,
+    },
+    saveText: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.primary,
+      textAlign: "right",
+    },
+    saveTextDisabled: {
+      color: colors.textMuted,
+    },
+    content: {
+      flex: 1,
+    },
+    contentContainer: {
+      padding: spacing.lg,
+    },
+    section: {
+      marginBottom: spacing.xl,
+    },
+    sectionTitle: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+    },
+    sectionSubtitle: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontRegular,
+      color: colors.textSecondary,
+      marginBottom: spacing.md,
+    },
+    inputContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      borderColor: colors.divider,
+      ...shadows.sm,
+    },
+    textInput: {
+      padding: spacing.md,
+      fontSize: typography.base,
+      fontFamily: typography.fontRegular,
+      color: colors.textPrimary,
+      minHeight: 80,
+    },
+    reanalyzeNote: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+      marginTop: spacing.sm,
+      paddingHorizontal: spacing.sm,
+    },
+    reanalyzeText: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontMedium,
+      color: colors.primary,
+    },
+    mealTypeGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: spacing.sm,
+    },
+    mealTypeOption: {
+      flex: 1,
+      minWidth: "45%",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      padding: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      borderWidth: 2,
+      borderColor: colors.divider,
+    },
+    mealTypeSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryBg,
+    },
+    mealTypeLabel: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontMedium,
+      color: colors.textSecondary,
+    },
+    mealTypeLabelSelected: {
+      color: colors.primary,
+    },
+    nutritionCard: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      ...shadows.sm,
+    },
+    nutritionRow: {
+      flexDirection: "row",
+      justifyContent: "space-around",
+      marginVertical: spacing.xs,
+    },
+    nutritionItem: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.xs,
+    },
+    nutritionValue: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.textPrimary,
+    },
+    nutritionLabel: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontRegular,
+      color: colors.textMuted,
+    },
+    errorContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      backgroundColor: "#FEE2E2",
+      padding: spacing.md,
+      borderRadius: borderRadius.md,
+    },
+    errorText: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontMedium,
+      color: colors.error,
+    },
+  });

@@ -3,14 +3,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useOnboarding } from "../../lib/OnboardingContext";
+import { useTheme } from "../../lib/ThemeContext";
 import { Gender } from "../../lib/models/userProfile";
-import {
-  colors,
-  spacing,
-  typography,
-  borderRadius,
-  shadows,
-} from "../../lib/theme";
+import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
 
 const genderOptions: { value: Gender; label: string; icon: string }[] = [
   { value: "male", label: "Male", icon: "male" },
@@ -20,6 +15,7 @@ const genderOptions: { value: Gender; label: string; icon: string }[] = [
 
 export default function GenderAgeScreen() {
   const { data, updateData } = useOnboarding();
+  const { colors } = useTheme();
 
   const handleNext = () => {
     router.push("/onboarding/body");
@@ -36,6 +32,8 @@ export default function GenderAgeScreen() {
       updateData({ age: data.age + 1 });
     }
   };
+
+  const styles = createStyles(colors);
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -131,130 +129,131 @@ export default function GenderAgeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing.xl,
-  },
-  progressContainer: {
-    marginTop: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: colors.divider,
-    borderRadius: 2,
-    marginBottom: spacing.sm,
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: colors.primary,
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: typography.sm,
-    fontFamily: typography.fontMedium,
-    color: colors.textMuted,
-  },
-  title: {
-    fontSize: typography.xxl,
-    fontFamily: typography.fontBold,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    fontSize: typography.base,
-    fontFamily: typography.fontRegular,
-    color: colors.textSecondary,
-    marginBottom: spacing.xxxl,
-  },
-  section: {
-    marginBottom: spacing.xl,
-  },
-  sectionLabel: {
-    fontSize: typography.base,
-    fontFamily: typography.fontSemibold,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  genderContainer: {
-    flexDirection: "row",
-    gap: spacing.md,
-  },
-  genderOption: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    borderWidth: 2,
-    borderColor: colors.divider,
-    ...shadows.sm,
-  },
-  genderOptionSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryBg,
-  },
-  genderLabel: {
-    marginTop: spacing.sm,
-    fontSize: typography.sm,
-    fontFamily: typography.fontMedium,
-    color: colors.textSecondary,
-  },
-  genderLabelSelected: {
-    color: colors.primary,
-  },
-  ageContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.lg,
-  },
-  ageButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.primaryBg,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadows.sm,
-  },
-  ageDisplay: {
-    alignItems: "center",
-    minWidth: 100,
-  },
-  ageValue: {
-    fontSize: 48,
-    fontFamily: typography.fontBold,
-    color: colors.textPrimary,
-  },
-  ageUnit: {
-    fontSize: typography.sm,
-    fontFamily: typography.fontMedium,
-    color: colors.textMuted,
-  },
-  navigation: {
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.lg,
-  },
-  nextButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    ...shadows.md,
-  },
-  nextButtonText: {
-    fontSize: typography.base,
-    fontFamily: typography.fontSemibold,
-    color: "#FFFFFF",
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: spacing.xl,
+    },
+    progressContainer: {
+      marginTop: spacing.md,
+      marginBottom: spacing.xl,
+    },
+    progressBar: {
+      height: 4,
+      backgroundColor: colors.divider,
+      borderRadius: 2,
+      marginBottom: spacing.sm,
+    },
+    progressFill: {
+      height: "100%",
+      backgroundColor: colors.primary,
+      borderRadius: 2,
+    },
+    progressText: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontMedium,
+      color: colors.textMuted,
+    },
+    title: {
+      fontSize: typography.xxl,
+      fontFamily: typography.fontBold,
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+    },
+    subtitle: {
+      fontSize: typography.base,
+      fontFamily: typography.fontRegular,
+      color: colors.textSecondary,
+      marginBottom: spacing.xxxl,
+    },
+    section: {
+      marginBottom: spacing.xl,
+    },
+    sectionLabel: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.md,
+    },
+    genderContainer: {
+      flexDirection: "row",
+      gap: spacing.md,
+    },
+    genderOption: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: spacing.lg,
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      borderWidth: 2,
+      borderColor: colors.divider,
+      ...shadows.sm,
+    },
+    genderOptionSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryBg,
+    },
+    genderLabel: {
+      marginTop: spacing.sm,
+      fontSize: typography.sm,
+      fontFamily: typography.fontMedium,
+      color: colors.textSecondary,
+    },
+    genderLabelSelected: {
+      color: colors.primary,
+    },
+    ageContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.lg,
+    },
+    ageButton: {
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.primaryBg,
+      alignItems: "center",
+      justifyContent: "center",
+      ...shadows.sm,
+    },
+    ageDisplay: {
+      alignItems: "center",
+      minWidth: 100,
+    },
+    ageValue: {
+      fontSize: 48,
+      fontFamily: typography.fontBold,
+      color: colors.textPrimary,
+    },
+    ageUnit: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontMedium,
+      color: colors.textMuted,
+    },
+    navigation: {
+      paddingHorizontal: spacing.xl,
+      paddingBottom: spacing.lg,
+    },
+    nextButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      backgroundColor: colors.primary,
+      paddingVertical: spacing.md,
+      borderRadius: borderRadius.lg,
+      ...shadows.md,
+    },
+    nextButtonText: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: "#FFFFFF",
+    },
+  });

@@ -8,13 +8,8 @@ import {
   Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  colors,
-  spacing,
-  typography,
-  borderRadius,
-  shadows,
-} from "../lib/theme";
+import { useTheme } from "../lib/ThemeContext";
+import { spacing, typography, borderRadius, shadows } from "../lib/theme";
 
 interface ActionOption {
   label: string;
@@ -36,6 +31,9 @@ export function ActionSheet({
   title,
   options,
 }: ActionSheetProps) {
+  const { colors } = useTheme();
+  const styles = createStyles(colors);
+
   return (
     <Modal
       visible={visible}
@@ -103,73 +101,74 @@ export function ActionSheet({
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    justifyContent: "flex-end",
-  },
-  sheet: {
-    backgroundColor: colors.background,
-    borderTopLeftRadius: borderRadius.xl,
-    borderTopRightRadius: borderRadius.xl,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xxxl,
-    paddingHorizontal: spacing.lg,
-  },
-  title: {
-    fontSize: typography.base,
-    fontFamily: typography.fontSemibold,
-    color: colors.textSecondary,
-    textAlign: "center",
-    marginBottom: spacing.lg,
-  },
-  optionsContainer: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    ...shadows.sm,
-  },
-  option: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: spacing.md,
-  },
-  optionBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: colors.divider,
-  },
-  iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.sm,
-    backgroundColor: colors.primaryBg,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: spacing.md,
-  },
-  iconContainerDestructive: {
-    backgroundColor: "#FEE2E2",
-  },
-  optionLabel: {
-    flex: 1,
-    fontSize: typography.base,
-    fontFamily: typography.fontMedium,
-    color: colors.textPrimary,
-  },
-  optionLabelDestructive: {
-    color: colors.error,
-  },
-  cancelButton: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginTop: spacing.md,
-    alignItems: "center",
-    ...shadows.sm,
-  },
-  cancelText: {
-    fontSize: typography.base,
-    fontFamily: typography.fontSemibold,
-    color: colors.textSecondary,
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    overlay: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: "flex-end",
+    },
+    sheet: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: borderRadius.xl,
+      borderTopRightRadius: borderRadius.xl,
+      paddingTop: spacing.lg,
+      paddingBottom: spacing.xxxl,
+      paddingHorizontal: spacing.lg,
+    },
+    title: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.textSecondary,
+      textAlign: "center",
+      marginBottom: spacing.lg,
+    },
+    optionsContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      ...shadows.sm,
+    },
+    option: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: spacing.md,
+    },
+    optionBorder: {
+      borderBottomWidth: 1,
+      borderBottomColor: colors.divider,
+    },
+    iconContainer: {
+      width: 36,
+      height: 36,
+      borderRadius: borderRadius.sm,
+      backgroundColor: colors.primaryBg,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: spacing.md,
+    },
+    iconContainerDestructive: {
+      backgroundColor: "#FEE2E2",
+    },
+    optionLabel: {
+      flex: 1,
+      fontSize: typography.base,
+      fontFamily: typography.fontMedium,
+      color: colors.textPrimary,
+    },
+    optionLabelDestructive: {
+      color: colors.error,
+    },
+    cancelButton: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      marginTop: spacing.md,
+      alignItems: "center",
+      ...shadows.sm,
+    },
+    cancelText: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.textSecondary,
+    },
+  });

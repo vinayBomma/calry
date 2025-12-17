@@ -9,18 +9,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useOnboarding } from "../../lib/OnboardingContext";
+import { useTheme } from "../../lib/ThemeContext";
 import {
   ActivityLevel,
   activityLevelLabels,
   activityLevelDescriptions,
 } from "../../lib/models/userProfile";
-import {
-  colors,
-  spacing,
-  typography,
-  borderRadius,
-  shadows,
-} from "../../lib/theme";
+import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
 
 const activityOptions: { value: ActivityLevel; icon: string }[] = [
   { value: "sedentary", icon: "desktop-outline" },
@@ -32,6 +27,7 @@ const activityOptions: { value: ActivityLevel; icon: string }[] = [
 
 export default function ActivityScreen() {
   const { data, updateData } = useOnboarding();
+  const { colors } = useTheme();
 
   const handleBack = () => {
     router.back();
@@ -40,6 +36,8 @@ export default function ActivityScreen() {
   const handleNext = () => {
     router.push("/onboarding/goals");
   };
+
+  const styles = createStyles(colors);
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
@@ -141,131 +139,132 @@ export default function ActivityScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: spacing.xl,
-  },
-  progressContainer: {
-    marginTop: spacing.md,
-    marginBottom: spacing.xl,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: colors.divider,
-    borderRadius: 2,
-    marginBottom: spacing.sm,
-  },
-  progressFill: {
-    height: "100%",
-    backgroundColor: colors.primary,
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: typography.sm,
-    fontFamily: typography.fontMedium,
-    color: colors.textMuted,
-  },
-  title: {
-    fontSize: typography.xxl,
-    fontFamily: typography.fontBold,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    fontSize: typography.base,
-    fontFamily: typography.fontRegular,
-    color: colors.textSecondary,
-    marginBottom: spacing.xl,
-  },
-  optionsContainer: {
-    flex: 1,
-  },
-  optionCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    borderWidth: 2,
-    borderColor: colors.divider,
-    marginBottom: spacing.sm,
-    ...shadows.sm,
-  },
-  optionCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryBg,
-  },
-  optionIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.divider,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: spacing.md,
-  },
-  optionIconContainerSelected: {
-    backgroundColor: colors.primaryMuted,
-  },
-  optionContent: {
-    flex: 1,
-  },
-  optionLabel: {
-    fontSize: typography.base,
-    fontFamily: typography.fontSemibold,
-    color: colors.textPrimary,
-    marginBottom: 2,
-  },
-  optionLabelSelected: {
-    color: colors.primary,
-  },
-  optionDescription: {
-    fontSize: typography.sm,
-    fontFamily: typography.fontRegular,
-    color: colors.textMuted,
-  },
-  navigation: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.lg,
-    gap: spacing.md,
-  },
-  backButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.xl,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.divider,
-  },
-  backButtonText: {
-    fontSize: typography.base,
-    fontFamily: typography.fontMedium,
-    color: colors.textSecondary,
-  },
-  nextButton: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.sm,
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    ...shadows.md,
-  },
-  nextButtonText: {
-    fontSize: typography.base,
-    fontFamily: typography.fontSemibold,
-    color: "#FFFFFF",
-  },
-});
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      flex: 1,
+      paddingHorizontal: spacing.xl,
+    },
+    progressContainer: {
+      marginTop: spacing.md,
+      marginBottom: spacing.xl,
+    },
+    progressBar: {
+      height: 4,
+      backgroundColor: colors.divider,
+      borderRadius: 2,
+      marginBottom: spacing.sm,
+    },
+    progressFill: {
+      height: "100%",
+      backgroundColor: colors.primary,
+      borderRadius: 2,
+    },
+    progressText: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontMedium,
+      color: colors.textMuted,
+    },
+    title: {
+      fontSize: typography.xxl,
+      fontFamily: typography.fontBold,
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+    },
+    subtitle: {
+      fontSize: typography.base,
+      fontFamily: typography.fontRegular,
+      color: colors.textSecondary,
+      marginBottom: spacing.xl,
+    },
+    optionsContainer: {
+      flex: 1,
+    },
+    optionCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: spacing.md,
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      borderWidth: 2,
+      borderColor: colors.divider,
+      marginBottom: spacing.sm,
+      ...shadows.sm,
+    },
+    optionCardSelected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryBg,
+    },
+    optionIconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: borderRadius.md,
+      backgroundColor: colors.divider,
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: spacing.md,
+    },
+    optionIconContainerSelected: {
+      backgroundColor: colors.primaryMuted,
+    },
+    optionContent: {
+      flex: 1,
+    },
+    optionLabel: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.textPrimary,
+      marginBottom: 2,
+    },
+    optionLabelSelected: {
+      color: colors.primary,
+    },
+    optionDescription: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontRegular,
+      color: colors.textMuted,
+    },
+    navigation: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      paddingHorizontal: spacing.xl,
+      paddingBottom: spacing.lg,
+      gap: spacing.md,
+    },
+    backButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.xl,
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      borderColor: colors.divider,
+    },
+    backButtonText: {
+      fontSize: typography.base,
+      fontFamily: typography.fontMedium,
+      color: colors.textSecondary,
+    },
+    nextButton: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      backgroundColor: colors.primary,
+      paddingVertical: spacing.md,
+      borderRadius: borderRadius.lg,
+      ...shadows.md,
+    },
+    nextButtonText: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: "#FFFFFF",
+    },
+  });
