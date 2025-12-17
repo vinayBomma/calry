@@ -13,6 +13,7 @@
     "@google/generative-ai": "^0.24.1",
     "expo": "~54.0.13",
     "expo-constants": "^18.0.9",
+    "expo-dev-client": "~6.0.20",
     "expo-linking": "^8.0.8",
     "expo-router": "^6.0.12",
     "expo-sqlite": "~16.0.10",
