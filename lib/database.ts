@@ -1,5 +1,6 @@
 import * as SQLite from "expo-sqlite";
 import { FoodItem } from "./models/food";
+import { UserProfile, getDefaultProfile } from "./models/userProfile";
 
 const DATABASE_NAME = "snacktrack.db";
 
@@ -7,7 +8,9 @@ let db: SQLite.SQLiteDatabase | null = null;
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (!db) {
-    db = await SQLite.openDatabaseAsync(DATABASE_NAME);
+    db = await SQLite.openDatabaseAsync(DATABASE_NAME, {
+      useNewConnection: true
+    });
     await initDatabase(db);
   }
   return db;
@@ -45,6 +48,52 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
   if (!goals) {
     await database.runAsync(
       "INSERT INTO daily_goals (id, calorieGoal, proteinGoal, carbsGoal, fatGoal) VALUES (1, 2000, 120, 250, 65)"
+    );
+  }
+
+  // Create user_profile table
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS user_profile (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      gender TEXT NOT NULL DEFAULT 'male',
+      age INTEGER NOT NULL DEFAULT 25,
+      heightCm REAL NOT NULL DEFAULT 170,
+      weightKg REAL NOT NULL DEFAULT 70,
+      targetWeightKg REAL NOT NULL DEFAULT 70,
+      heightUnit TEXT NOT NULL DEFAULT 'cm',
+      weightUnit TEXT NOT NULL DEFAULT 'kg',
+      activityLevel TEXT NOT NULL DEFAULT 'moderately_active',
+      weightGoal TEXT NOT NULL DEFAULT 'maintain',
+      goalAggressiveness TEXT NOT NULL DEFAULT 'moderate',
+      eatingType TEXT NOT NULL DEFAULT 'normal',
+      onboardingCompleted INTEGER NOT NULL DEFAULT 0,
+      createdAt INTEGER NOT NULL,
+      updatedAt INTEGER NOT NULL
+    );
+  `);
+
+  // Insert default profile if not exists
+  const profile = await database.getFirstAsync("SELECT * FROM user_profile WHERE id = 1");
+  if (!profile) {
+    const defaultProfile = getDefaultProfile();
+    await database.runAsync(
+      `INSERT INTO user_profile (id, gender, age, heightCm, weightKg, targetWeightKg, heightUnit, weightUnit, activityLevel, weightGoal, goalAggressiveness, eatingType, onboardingCompleted, createdAt, updatedAt) 
+       VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
+      [
+        defaultProfile.gender,
+        defaultProfile.age,
+        defaultProfile.heightCm,
+        defaultProfile.weightKg,
+        defaultProfile.targetWeightKg,
+        defaultProfile.heightUnit,
+        defaultProfile.weightUnit,
+        defaultProfile.activityLevel,
+        defaultProfile.weightGoal,
+        defaultProfile.goalAggressiveness,
+        defaultProfile.eatingType,
+        defaultProfile.createdAt,
+        defaultProfile.updatedAt,
+      ]
     );
   }
 }
@@ -121,4 +170,103 @@ export async function updateDailyGoals(goals: DailyGoals): Promise<void> {
     "UPDATE daily_goals SET calorieGoal = ?, proteinGoal = ?, carbsGoal = ?, fatGoal = ? WHERE id = 1",
     [goals.calorieGoal, goals.proteinGoal, goals.carbsGoal, goals.fatGoal]
   );
+}
+
+// User Profile operations
+export async function getUserProfile(): Promise<UserProfile | null> {
+  const database = await getDatabase();
+  const result = await database.getFirstAsync<{
+    id: number;
+    gender: string;
+    age: number;
+    heightCm: number;
+    weightKg: number;
+    targetWeightKg: number;
+    heightUnit: string;
+    weightUnit: string;
+    activityLevel: string;
+    weightGoal: string;
+    goalAggressiveness: string;
+    eatingType: string;
+    onboardingCompleted: number;
+    createdAt: number;
+    updatedAt: number;
+  }>("SELECT * FROM user_profile WHERE id = 1");
+  
+  if (!result) return null;
+  
+  return {
+    ...result,
+    onboardingCompleted: result.onboardingCompleted === 1,
+  } as UserProfile;
+}
+
+export async function updateUserProfile(profile: Partial<UserProfile>): Promise<void> {
+  const database = await getDatabase();
+  const updates: string[] = [];
+  const values: (string | number)[] = [];
+
+  if (profile.gender !== undefined) {
+    updates.push("gender = ?");
+    values.push(profile.gender);
+  }
+  if (profile.age !== undefined) {
+    updates.push("age = ?");
+    values.push(profile.age);
+  }
+  if (profile.heightCm !== undefined) {
+    updates.push("heightCm = ?");
+    values.push(profile.heightCm);
+  }
+  if (profile.weightKg !== undefined) {
+    updates.push("weightKg = ?");
+    values.push(profile.weightKg);
+  }
+  if (profile.targetWeightKg !== undefined) {
+    updates.push("targetWeightKg = ?");
+    values.push(profile.targetWeightKg);
+  }
+  if (profile.heightUnit !== undefined) {
+    updates.push("heightUnit = ?");
+    values.push(profile.heightUnit);
+  }
+  if (profile.weightUnit !== undefined) {
+    updates.push("weightUnit = ?");
+    values.push(profile.weightUnit);
+  }
+  if (profile.activityLevel !== undefined) {
+    updates.push("activityLevel = ?");
+    values.push(profile.activityLevel);
+  }
+  if (profile.weightGoal !== undefined) {
+    updates.push("weightGoal = ?");
+    values.push(profile.weightGoal);
+  }
+  if (profile.goalAggressiveness !== undefined) {
+    updates.push("goalAggressiveness = ?");
+    values.push(profile.goalAggressiveness);
+  }
+  if (profile.eatingType !== undefined) {
+    updates.push("eatingType = ?");
+    values.push(profile.eatingType);
+  }
+  if (profile.onboardingCompleted !== undefined) {
+    updates.push("onboardingCompleted = ?");
+    values.push(profile.onboardingCompleted ? 1 : 0);
+  }
+
+  updates.push("updatedAt = ?");
+  values.push(Date.now());
+
+  if (updates.length > 0) {
+    await database.runAsync(
+      `UPDATE user_profile SET ${updates.join(", ")} WHERE id = 1`,
+      values
+    );
+  }
+}
+
+export async function isOnboardingCompleted(): Promise<boolean> {
+  const profile = await getUserProfile();
+  return profile?.onboardingCompleted ?? false;
 }
