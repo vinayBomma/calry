@@ -1,12 +1,10 @@
-import { useState } from "react";
 import {
-  StyleSheet,
   View,
   Text,
   TouchableOpacity,
   TextInput,
+  StyleSheet,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useOnboarding } from "../../lib/OnboardingContext";
@@ -16,22 +14,13 @@ import {
   feetInchesToCm,
   kgToLbs,
   lbsToKg,
-  HeightUnit,
-  WeightUnit,
 } from "../../lib/models/userProfile";
 import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
+import { OnboardingLayout } from "../../components/layout";
 
 export default function BodyScreen() {
   const { data, updateData } = useOnboarding();
   const { colors } = useTheme();
-
-  const handleBack = () => {
-    router.back();
-  };
-
-  const handleNext = () => {
-    router.push("/onboarding/activity");
-  };
 
   const toggleHeightUnit = () => {
     if (data.heightUnit === "cm") {
@@ -96,22 +85,15 @@ export default function BodyScreen() {
   const styles = createStyles(colors);
 
   return (
-    <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-      <View style={styles.content}>
-        {/* Progress */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, { width: "33.2%" }]} />
-          </View>
-          <Text style={styles.progressText}>Step 2 of 6</Text>
-        </View>
-
-        {/* Title */}
-        <Text style={styles.title}>Your body measurements</Text>
-        <Text style={styles.subtitle}>
-          We'll use this to calculate your daily calorie needs
-        </Text>
-
+    <OnboardingLayout
+      currentStep={2}
+      totalSteps={6}
+      title="Your body measurements"
+      subtitle="We'll use this to calculate your daily calorie needs"
+      onNext={() => router.push("/onboarding/activity")}
+      onBack={() => router.back()}
+    >
+      <View style={{ flex: 1 }}>
         {/* Height */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -131,7 +113,6 @@ export default function BodyScreen() {
               />
             </TouchableOpacity>
           </View>
-
           {data.heightUnit === "cm" ? (
             <View style={styles.inputRow}>
               <View style={styles.inputContainer}>
@@ -171,7 +152,7 @@ export default function BodyScreen() {
           )}
         </View>
 
-        {/* Weight */}
+        {/* Current Weight */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionLabel}>Current Weight</Text>
@@ -190,7 +171,6 @@ export default function BodyScreen() {
               />
             </TouchableOpacity>
           </View>
-
           <View style={styles.inputRow}>
             <View style={styles.inputContainer}>
               <TextInput
@@ -233,76 +213,13 @@ export default function BodyScreen() {
           </Text>
         </View>
       </View>
-
-      {/* Navigation */}
-      <View style={styles.navigation}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={handleBack}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="arrow-back" size={20} color={colors.textSecondary} />
-          <Text style={styles.backButtonText}>Back</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.nextButton}
-          onPress={handleNext}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.nextButtonText}>Next</Text>
-          <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+    </OnboardingLayout>
   );
 }
 
 const createStyles = (colors: any) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    content: {
-      flex: 1,
-      paddingHorizontal: spacing.xl,
-    },
-    progressContainer: {
-      marginTop: spacing.md,
-      marginBottom: spacing.xl,
-    },
-    progressBar: {
-      height: 4,
-      backgroundColor: colors.divider,
-      borderRadius: 2,
-      marginBottom: spacing.sm,
-    },
-    progressFill: {
-      height: "100%",
-      backgroundColor: colors.primary,
-      borderRadius: 2,
-    },
-    progressText: {
-      fontSize: typography.sm,
-      fontFamily: typography.fontMedium,
-      color: colors.textMuted,
-    },
-    title: {
-      fontSize: typography.xxl,
-      fontFamily: typography.fontBold,
-      color: colors.textPrimary,
-      marginBottom: spacing.sm,
-    },
-    subtitle: {
-      fontSize: typography.base,
-      fontFamily: typography.fontRegular,
-      color: colors.textSecondary,
-      marginBottom: spacing.xl,
-    },
-    section: {
-      marginBottom: spacing.xl,
-    },
+    section: { marginBottom: spacing.xl },
     sectionHeader: {
       flexDirection: "row",
       justifyContent: "space-between",
@@ -328,10 +245,7 @@ const createStyles = (colors: any) =>
       fontFamily: typography.fontMedium,
       color: colors.primary,
     },
-    inputRow: {
-      flexDirection: "row",
-      gap: spacing.md,
-    },
+    inputRow: { flexDirection: "row", gap: spacing.md },
     inputContainer: {
       flex: 1,
       flexDirection: "row",
@@ -362,44 +276,5 @@ const createStyles = (colors: any) =>
       fontFamily: typography.fontRegular,
       color: colors.textMuted,
       marginTop: spacing.sm,
-    },
-    navigation: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      paddingHorizontal: spacing.xl,
-      paddingBottom: spacing.lg,
-      gap: spacing.md,
-    },
-    backButton: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.sm,
-      paddingVertical: spacing.md,
-      paddingHorizontal: spacing.xl,
-      borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      borderColor: colors.divider,
-    },
-    backButtonText: {
-      fontSize: typography.base,
-      fontFamily: typography.fontMedium,
-      color: colors.textSecondary,
-    },
-    nextButton: {
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.sm,
-      backgroundColor: colors.primary,
-      paddingVertical: spacing.md,
-      borderRadius: borderRadius.lg,
-      ...shadows.md,
-    },
-    nextButtonText: {
-      fontSize: typography.base,
-      fontFamily: typography.fontSemibold,
-      color: "#FFFFFF",
     },
   });
