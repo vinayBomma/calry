@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useOnboarding } from "../../lib/OnboardingContext";
+import { useOnboardingStore } from "../../store";
 import { useTheme } from "../../lib/ThemeContext";
 import { Gender } from "../../lib/models/userProfile";
 import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
@@ -14,15 +14,15 @@ const genderOptions: { value: Gender; label: string; icon: string }[] = [
 ];
 
 export default function GenderAgeScreen() {
-  const { data, updateData } = useOnboarding();
+  const { gender, age, updateData } = useOnboardingStore();
   const { colors } = useTheme();
 
   const decreaseAge = () => {
-    if (data.age > 13) updateData({ age: data.age - 1 });
+    if (age > 13) updateData({ age: age - 1 });
   };
 
   const increaseAge = () => {
-    if (data.age < 100) updateData({ age: data.age + 1 });
+    if (age < 100) updateData({ age: age + 1 });
   };
 
   return (
@@ -57,13 +57,13 @@ export default function GenderAgeScreen() {
                   justifyContent: "center",
                   padding: spacing.lg,
                   backgroundColor:
-                    data.gender === option.value
+                    gender === option.value
                       ? colors.primaryBg
                       : colors.surface,
                   borderRadius: borderRadius.lg,
                   borderWidth: 2,
                   borderColor:
-                    data.gender === option.value
+                    gender === option.value
                       ? colors.primary
                       : colors.divider,
                   ...shadows.sm,
@@ -75,7 +75,7 @@ export default function GenderAgeScreen() {
                   name={option.icon as any}
                   size={32}
                   color={
-                    data.gender === option.value
+                    gender === option.value
                       ? colors.primary
                       : colors.textSecondary
                   }
@@ -86,7 +86,7 @@ export default function GenderAgeScreen() {
                     fontSize: typography.sm,
                     fontFamily: typography.fontMedium,
                     color:
-                      data.gender === option.value
+                      gender === option.value
                         ? colors.primary
                         : colors.textSecondary,
                   }}
@@ -141,7 +141,7 @@ export default function GenderAgeScreen() {
                   color: colors.textPrimary,
                 }}
               >
-                {data.age}
+                {age}
               </Text>
               <Text
                 style={{

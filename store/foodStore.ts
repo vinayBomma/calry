@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { FoodItem } from "../lib/models/food";
+import { FoodItem, DailyStats } from "../lib/models/food";
 
 type MealType = FoodItem["mealType"];
 import {
@@ -11,10 +11,15 @@ import {
   getDailyGoals,
   updateDailyGoals as dbUpdateDailyGoals,
   DailyGoals,
+  getFavouriteMeals,
+  addFavouriteMeal as dbAddFavouriteMeal,
+  deleteFavouriteMeal as dbDeleteFavouriteMeal,
+  FavouriteMeal,
 } from "../lib/database";
 
 interface FoodState {
   foodItems: FoodItem[];
+  favourites: FavouriteMeal[];
   goals: DailyGoals;
   isLoading: boolean;
 
@@ -27,16 +32,21 @@ interface FoodState {
   };
 
   // Actions
+  loadData: () => Promise<void>;
   loadFoodItems: () => Promise<void>;
   loadGoals: () => Promise<void>;
-  addFoodItem: (item: Omit<FoodItem, "id" | "timestamp">) => Promise<void>;
+  loadFavourites: () => Promise<void>;
+  addFoodItem: (item: Omit<FoodItem, "id" | "timestamp"> | FoodItem) => Promise<void>;
   deleteFoodItem: (id: string) => Promise<void>;
   updateFoodItem: (item: FoodItem) => Promise<void>;
   clearTodaysFoodItems: () => Promise<void>;
   updateGoals: (goals: DailyGoals) => Promise<void>;
+  addFavourite: (meal: FavouriteMeal) => Promise<void>;
+  deleteFavourite: (id: string) => Promise<void>;
 
   // Selectors
   getFoodItemsByMeal: (mealType: MealType) => FoodItem[];
+  getDailyStats: () => DailyStats;
 }
 
 const calculateTotals = (items: FoodItem[]) => ({
@@ -48,9 +58,31 @@ const calculateTotals = (items: FoodItem[]) => ({
 
 export const useFoodStore = create<FoodState>((set, get) => ({
   foodItems: [],
+  favourites: [],
   goals: { calorieGoal: 2000, proteinGoal: 120, carbsGoal: 250, fatGoal: 65 },
   isLoading: false,
   totals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+
+  loadData: async () => {
+    set({ isLoading: true });
+    try {
+      const [items, goals, favourites] = await Promise.all([
+        getAllFoodItems(),
+        getDailyGoals(),
+        getFavouriteMeals(),
+      ]);
+      set({
+        foodItems: items,
+        goals,
+        favourites,
+        totals: calculateTotals(items),
+        isLoading: false,
+      });
+    } catch (error) {
+      console.error("Failed to load data:", error);
+      set({ isLoading: false });
+    }
+  },
 
   loadFoodItems: async () => {
     set({ isLoading: true });
@@ -76,12 +108,24 @@ export const useFoodStore = create<FoodState>((set, get) => ({
     }
   },
 
+  loadFavourites: async () => {
+    try {
+      const favourites = await getFavouriteMeals();
+      set({ favourites });
+    } catch (error) {
+      console.error("Failed to load favourites:", error);
+    }
+  },
+
   addFoodItem: async (item) => {
-    const newItem: FoodItem = {
-      ...item,
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: Date.now(),
-    };
+    // Support both full FoodItem and partial item without id/timestamp
+    const newItem: FoodItem = 'id' in item && 'timestamp' in item
+      ? item as FoodItem
+      : {
+        ...item,
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        timestamp: Date.now(),
+      } as FoodItem;
 
     try {
       await insertFoodItem(newItem);
@@ -150,7 +194,46 @@ export const useFoodStore = create<FoodState>((set, get) => ({
     }
   },
 
+  addFavourite: async (meal) => {
+    try {
+      await dbAddFavouriteMeal(meal);
+      const { favourites } = get();
+      set({ favourites: [...favourites, meal].sort((a, b) => a.name.localeCompare(b.name)) });
+    } catch (error) {
+      console.error("Failed to add favourite:", error);
+      throw error;
+    }
+  },
+
+  deleteFavourite: async (id) => {
+    try {
+      await dbDeleteFavouriteMeal(id);
+      const { favourites } = get();
+      set({ favourites: favourites.filter((f) => f.id !== id) });
+    } catch (error) {
+      console.error("Failed to delete favourite:", error);
+      throw error;
+    }
+  },
+
   getFoodItemsByMeal: (mealType) => {
     return get().foodItems.filter((item) => item.mealType === mealType);
+  },
+
+  getDailyStats: () => {
+    const { totals, goals } = get();
+    const today = new Date().toISOString().split("T")[0];
+
+    return {
+      date: today,
+      caloriesTotal: totals.calories,
+      proteinTotal: Math.round(totals.protein),
+      carbsTotal: Math.round(totals.carbs),
+      fatTotal: Math.round(totals.fat),
+      calorieGoal: goals.calorieGoal,
+      proteinGoal: goals.proteinGoal,
+      carbsGoal: goals.carbsGoal,
+      fatGoal: goals.fatGoal,
+    };
   },
 }));

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from 'expo-sqlite/kv-store';
 import { lightColors, darkColors } from "../lib/theme";
 
 type ThemeColors = typeof lightColors;

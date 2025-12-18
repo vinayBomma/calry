@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useOnboarding } from "../../lib/OnboardingContext";
+import { useOnboardingStore } from "../../store";
 import { useTheme } from "../../lib/ThemeContext";
 import {
   calculateNutritionGoals,
@@ -23,23 +23,27 @@ import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
 import { OnboardingLayout } from "../../components/layout";
 
 export default function SummaryScreen() {
-  const { data } = useOnboarding();
+  const {
+    gender, age, heightCm, heightFeet, heightInches, heightUnit,
+    weightKg, weightLbs, weightUnit, targetWeightKg, targetWeightLbs,
+    activityLevel, weightGoal, goalAggressiveness, eatingType
+  } = useOnboardingStore();
   const { colors } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
 
   const profile: UserProfile = {
     id: 1,
-    gender: data.gender,
-    age: data.age,
-    heightCm: data.heightCm,
-    weightKg: data.weightKg,
-    targetWeightKg: data.targetWeightKg,
-    heightUnit: data.heightUnit,
-    weightUnit: data.weightUnit,
-    activityLevel: data.activityLevel,
-    weightGoal: data.weightGoal,
-    goalAggressiveness: data.goalAggressiveness,
-    eatingType: data.eatingType,
+    gender,
+    age,
+    heightCm,
+    weightKg,
+    targetWeightKg,
+    heightUnit,
+    weightUnit,
+    activityLevel,
+    weightGoal,
+    goalAggressiveness,
+    eatingType,
     onboardingCompleted: true,
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -66,15 +70,15 @@ export default function SummaryScreen() {
   };
 
   const displayHeight =
-    data.heightUnit === "cm"
-      ? `${data.heightCm} cm`
-      : `${data.heightFeet}'${data.heightInches}"`;
+    heightUnit === "cm"
+      ? `${heightCm} cm`
+      : `${heightFeet}'${heightInches}"`;
   const displayWeight =
-    data.weightUnit === "kg" ? `${data.weightKg} kg` : `${data.weightLbs} lbs`;
+    weightUnit === "kg" ? `${weightKg} kg` : `${weightLbs} lbs`;
   const displayTargetWeight =
-    data.weightUnit === "kg"
-      ? `${data.targetWeightKg} kg`
-      : `${data.targetWeightLbs} lbs`;
+    weightUnit === "kg"
+      ? `${targetWeightKg} kg`
+      : `${targetWeightLbs} lbs`;
 
   const styles = createStyles(colors);
 
@@ -129,25 +133,25 @@ export default function SummaryScreen() {
           {[
             {
               label: "Gender",
-              value: data.gender.charAt(0).toUpperCase() + data.gender.slice(1),
+              value: gender.charAt(0).toUpperCase() + gender.slice(1),
             },
-            { label: "Age", value: `${data.age} years` },
+            { label: "Age", value: `${age} years` },
             { label: "Height", value: displayHeight },
             { label: "Current Weight", value: displayWeight },
             { label: "Target Weight", value: displayTargetWeight },
             {
               label: "Activity Level",
-              value: activityLevelLabels[data.activityLevel],
+              value: activityLevelLabels[activityLevel],
             },
             {
               label: "Goal",
-              value: `${weightGoalLabels[data.weightGoal]}${
-                data.weightGoal !== "maintain"
-                  ? ` (${goalAggressivenessLabels[data.goalAggressiveness]})`
+              value: `${weightGoalLabels[weightGoal]}${
+                weightGoal !== "maintain"
+                  ? ` (${goalAggressivenessLabels[goalAggressiveness]})`
                   : ""
               }`,
             },
-            { label: "Eating Type", value: eatingTypeLabels[data.eatingType] },
+            { label: "Eating Type", value: eatingTypeLabels[eatingType] },
           ].map((row, i, arr) => (
             <View
               key={row.label}

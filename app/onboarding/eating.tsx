@@ -1,7 +1,7 @@
 import { ScrollView, View, Text } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useOnboarding } from "../../lib/OnboardingContext";
+import { useOnboardingStore } from "../../store";
 import { useTheme } from "../../lib/ThemeContext";
 import {
   EatingType,
@@ -19,7 +19,7 @@ const eatingOptions: { value: EatingType; icon: string }[] = [
 ];
 
 export default function EatingScreen() {
-  const { data, updateData } = useOnboarding();
+  const { eatingType, updateData } = useOnboardingStore();
   const { colors } = useTheme();
 
   return (
@@ -38,7 +38,7 @@ export default function EatingScreen() {
             icon={option.icon as any}
             title={eatingTypeLabels[option.value]}
             subtitle={eatingTypeDescriptions[option.value]}
-            selected={data.eatingType === option.value}
+            selected={eatingType === option.value}
             onPress={() => updateData({ eatingType: option.value })}
             iconSize={28}
           />

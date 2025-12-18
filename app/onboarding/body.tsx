@@ -7,7 +7,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useOnboarding } from "../../lib/OnboardingContext";
+import { useOnboardingStore } from "../../store";
 import { useTheme } from "../../lib/ThemeContext";
 import {
   cmToFeetInches,
@@ -19,31 +19,35 @@ import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
 import { OnboardingLayout } from "../../components/layout";
 
 export default function BodyScreen() {
-  const { data, updateData } = useOnboarding();
+  const { 
+    heightUnit, heightCm, heightFeet, heightInches,
+    weightUnit, weightKg, weightLbs, targetWeightKg, targetWeightLbs,
+    updateData 
+  } = useOnboardingStore();
   const { colors } = useTheme();
 
   const toggleHeightUnit = () => {
-    if (data.heightUnit === "cm") {
-      const { feet, inches } = cmToFeetInches(data.heightCm);
+    if (heightUnit === "cm") {
+      const { feet, inches } = cmToFeetInches(heightCm);
       updateData({ heightUnit: "ft", heightFeet: feet, heightInches: inches });
     } else {
-      const cm = feetInchesToCm(data.heightFeet, data.heightInches);
+      const cm = feetInchesToCm(heightFeet, heightInches);
       updateData({ heightUnit: "cm", heightCm: cm });
     }
   };
 
   const toggleWeightUnit = () => {
-    if (data.weightUnit === "kg") {
+    if (weightUnit === "kg") {
       updateData({
         weightUnit: "lbs",
-        weightLbs: kgToLbs(data.weightKg),
-        targetWeightLbs: kgToLbs(data.targetWeightKg),
+        weightLbs: kgToLbs(weightKg),
+        targetWeightLbs: kgToLbs(targetWeightKg),
       });
     } else {
       updateData({
         weightUnit: "kg",
-        weightKg: lbsToKg(data.weightLbs),
-        targetWeightKg: lbsToKg(data.targetWeightLbs),
+        weightKg: lbsToKg(weightLbs),
+        targetWeightKg: lbsToKg(targetWeightLbs),
       });
     }
   };
@@ -55,19 +59,19 @@ export default function BodyScreen() {
     } else if (field === "feet") {
       updateData({
         heightFeet: num,
-        heightCm: feetInchesToCm(num, data.heightInches),
+        heightCm: feetInchesToCm(num, heightInches),
       });
     } else {
       updateData({
         heightInches: num,
-        heightCm: feetInchesToCm(data.heightFeet, num),
+        heightCm: feetInchesToCm(heightFeet, num),
       });
     }
   };
 
   const updateWeight = (value: string, field: "current" | "target") => {
     const num = parseFloat(value) || 0;
-    if (data.weightUnit === "kg") {
+    if (weightUnit === "kg") {
       if (field === "current") {
         updateData({ weightKg: num, weightLbs: kgToLbs(num) });
       } else {
@@ -104,7 +108,7 @@ export default function BodyScreen() {
               activeOpacity={0.7}
             >
               <Text style={styles.unitToggleText}>
-                {data.heightUnit === "cm" ? "cm" : "ft/in"}
+                {heightUnit === "cm" ? "cm" : "ft/in"}
               </Text>
               <Ionicons
                 name="swap-horizontal"
@@ -113,12 +117,12 @@ export default function BodyScreen() {
               />
             </TouchableOpacity>
           </View>
-          {data.heightUnit === "cm" ? (
+          {heightUnit === "cm" ? (
             <View style={styles.inputRow}>
               <View style={styles.inputContainer}>
                 <TextInput
                   style={styles.input}
-                  value={data.heightCm.toString()}
+                  value={heightCm.toString()}
                   onChangeText={(v) => updateHeight(v, "cm")}
                   keyboardType="numeric"
                   maxLength={3}
@@ -131,7 +135,7 @@ export default function BodyScreen() {
               <View style={styles.inputContainer}>
                 <TextInput
                   style={styles.input}
-                  value={data.heightFeet.toString()}
+                  value={heightFeet.toString()}
                   onChangeText={(v) => updateHeight(v, "feet")}
                   keyboardType="numeric"
                   maxLength={1}
@@ -141,7 +145,7 @@ export default function BodyScreen() {
               <View style={styles.inputContainer}>
                 <TextInput
                   style={styles.input}
-                  value={data.heightInches.toString()}
+                  value={heightInches.toString()}
                   onChangeText={(v) => updateHeight(v, "inches")}
                   keyboardType="numeric"
                   maxLength={2}
@@ -162,7 +166,7 @@ export default function BodyScreen() {
               activeOpacity={0.7}
             >
               <Text style={styles.unitToggleText}>
-                {data.weightUnit === "kg" ? "kg" : "lbs"}
+                {weightUnit === "kg" ? "kg" : "lbs"}
               </Text>
               <Ionicons
                 name="swap-horizontal"
@@ -176,15 +180,15 @@ export default function BodyScreen() {
               <TextInput
                 style={styles.input}
                 value={
-                  data.weightUnit === "kg"
-                    ? data.weightKg.toString()
-                    : data.weightLbs.toString()
+                  weightUnit === "kg"
+                    ? weightKg.toString()
+                    : weightLbs.toString()
                 }
                 onChangeText={(v) => updateWeight(v, "current")}
                 keyboardType="decimal-pad"
                 maxLength={5}
               />
-              <Text style={styles.inputUnit}>{data.weightUnit}</Text>
+              <Text style={styles.inputUnit}>{weightUnit}</Text>
             </View>
           </View>
         </View>
@@ -197,15 +201,15 @@ export default function BodyScreen() {
               <TextInput
                 style={styles.input}
                 value={
-                  data.weightUnit === "kg"
-                    ? data.targetWeightKg.toString()
-                    : data.targetWeightLbs.toString()
+                  weightUnit === "kg"
+                    ? targetWeightKg.toString()
+                    : targetWeightLbs.toString()
                 }
                 onChangeText={(v) => updateWeight(v, "target")}
                 keyboardType="decimal-pad"
                 maxLength={5}
               />
-              <Text style={styles.inputUnit}>{data.weightUnit}</Text>
+              <Text style={styles.inputUnit}>{weightUnit}</Text>
             </View>
           </View>
           <Text style={styles.hint}>

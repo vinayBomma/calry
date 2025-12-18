@@ -1,6 +1,6 @@
 import { ScrollView } from "react-native";
 import { router } from "expo-router";
-import { useOnboarding } from "../../lib/OnboardingContext";
+import { useOnboardingStore } from "../../store";
 import {
   ActivityLevel,
   activityLevelLabels,
@@ -18,7 +18,7 @@ const activityOptions: { value: ActivityLevel; icon: string }[] = [
 ];
 
 export default function ActivityScreen() {
-  const { data, updateData } = useOnboarding();
+  const { activityLevel, updateData } = useOnboardingStore();
 
   return (
     <OnboardingLayout
@@ -36,7 +36,7 @@ export default function ActivityScreen() {
             icon={option.icon as any}
             title={activityLevelLabels[option.value]}
             subtitle={activityLevelDescriptions[option.value]}
-            selected={data.activityLevel === option.value}
+            selected={activityLevel === option.value}
             onPress={() => updateData({ activityLevel: option.value })}
           />
         ))}

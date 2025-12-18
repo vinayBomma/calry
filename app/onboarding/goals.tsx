@@ -1,7 +1,7 @@
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useOnboarding } from "../../lib/OnboardingContext";
+import { useOnboardingStore } from "../../store";
 import { useTheme } from "../../lib/ThemeContext";
 import {
   WeightGoal,
@@ -27,10 +27,10 @@ const aggressivenessOptions: GoalAggressiveness[] = [
 ];
 
 export default function GoalsScreen() {
-  const { data, updateData } = useOnboarding();
+  const { weightGoal, goalAggressiveness, updateData } = useOnboardingStore();
   const { colors } = useTheme();
 
-  const showAggressiveness = data.weightGoal !== "maintain";
+  const showAggressiveness = weightGoal !== "maintain";
 
   return (
     <OnboardingLayout
@@ -64,13 +64,13 @@ export default function GoalsScreen() {
                   justifyContent: "center",
                   padding: spacing.lg,
                   backgroundColor:
-                    data.weightGoal === option.value
+                    weightGoal === option.value
                       ? colors.primaryBg
                       : colors.surface,
                   borderRadius: borderRadius.lg,
                   borderWidth: 2,
                   borderColor:
-                    data.weightGoal === option.value
+                    weightGoal === option.value
                       ? option.color
                       : colors.divider,
                   ...shadows.sm,
@@ -82,7 +82,7 @@ export default function GoalsScreen() {
                   name={option.icon as any}
                   size={32}
                   color={
-                    data.weightGoal === option.value
+                    weightGoal === option.value
                       ? option.color
                       : colors.textSecondary
                   }
@@ -93,7 +93,7 @@ export default function GoalsScreen() {
                     fontSize: typography.sm,
                     fontFamily: typography.fontSemibold,
                     color:
-                      data.weightGoal === option.value
+                      weightGoal === option.value
                         ? option.color
                         : colors.textSecondary,
                     textAlign: "center",
@@ -127,7 +127,7 @@ export default function GoalsScreen() {
                 marginBottom: spacing.md,
               }}
             >
-              {data.weightGoal === "lose"
+              {weightGoal === "lose"
                 ? "Slower is healthier and more sustainable"
                 : "Gradual gains help build lean muscle"}
             </Text>
@@ -144,7 +144,7 @@ export default function GoalsScreen() {
                 }
                 title={goalAggressivenessLabels[option]}
                 subtitle={goalAggressivenessDescriptions[option]}
-                selected={data.goalAggressiveness === option}
+                selected={goalAggressiveness === option}
                 onPress={() => updateData({ goalAggressiveness: option })}
               />
             ))}
