@@ -141,7 +141,7 @@ export async function clearAllFoodItems(): Promise<void> {
   today.setHours(0, 0, 0, 0);
   const startOfDay = today.getTime();
   const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
-  
+
   await database.runAsync(
     "DELETE FROM food_items WHERE timestamp >= ? AND timestamp < ?",
     [startOfDay, endOfDay]
@@ -192,9 +192,9 @@ export async function getUserProfile(): Promise<UserProfile | null> {
     createdAt: number;
     updatedAt: number;
   }>("SELECT * FROM user_profile WHERE id = 1");
-  
+
   if (!result) return null;
-  
+
   return {
     ...result,
     onboardingCompleted: result.onboardingCompleted === 1,
@@ -269,4 +269,67 @@ export async function updateUserProfile(profile: Partial<UserProfile>): Promise<
 export async function isOnboardingCompleted(): Promise<boolean> {
   const profile = await getUserProfile();
   return profile?.onboardingCompleted ?? false;
+}
+
+// Favourite Meals operations
+export interface FavouriteMeal {
+  id: string;
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  mealType: string;
+}
+
+export async function initFavouritesTable(database: SQLite.SQLiteDatabase): Promise<void> {
+  await database.execAsync(`
+    CREATE TABLE IF NOT EXISTS favourite_meals (
+      id TEXT PRIMARY KEY NOT NULL,
+      name TEXT NOT NULL,
+      calories INTEGER NOT NULL,
+      protein REAL NOT NULL,
+      carbs REAL NOT NULL,
+      fat REAL NOT NULL,
+      mealType TEXT NOT NULL
+    );
+  `);
+}
+
+export async function getFavouriteMeals(): Promise<FavouriteMeal[]> {
+  const database = await getDatabase();
+  // Ensure table exists just in case (since we're adding this later)
+  await initFavouritesTable(database);
+
+  const result = await database.getAllAsync<FavouriteMeal>(
+    "SELECT * FROM favourite_meals ORDER BY name ASC"
+  );
+  return result;
+}
+
+export async function addFavouriteMeal(meal: FavouriteMeal): Promise<void> {
+  const database = await getDatabase();
+  await initFavouritesTable(database);
+
+  await database.runAsync(
+    `INSERT INTO favourite_meals (id, name, calories, protein, carbs, fat, mealType) 
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [meal.id, meal.name, meal.calories, meal.protein, meal.carbs, meal.fat, meal.mealType]
+  );
+}
+
+export async function deleteFavouriteMeal(id: string): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync("DELETE FROM favourite_meals WHERE id = ?", [id]);
+}
+
+export async function checkIsFavourite(name: string): Promise<boolean> {
+  const database = await getDatabase();
+  await initFavouritesTable(database);
+
+  const result = await database.getFirstAsync<{ count: number }>(
+    "SELECT COUNT(*) as count FROM favourite_meals WHERE name = ?",
+    [name]
+  );
+  return (result?.count ?? 0) > 0;
 }
