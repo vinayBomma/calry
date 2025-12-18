@@ -1,0 +1,499 @@
+import { useState, useCallback, useRef } from "react";
+import {
+  StyleSheet,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import * as SQLite from "expo-sqlite";
+import { useTheme } from "../../lib/ThemeContext";
+import { useProfileStore } from "../../store/profileStore";
+import { useFoodStore } from "../../store/foodStore";
+import { CalorieChart } from "../../components/stats";
+import { spacing, typography, borderRadius } from "../../lib/theme";
+
+type Period = "weekly" | "monthly";
+
+interface DayStats {
+  date: string;
+  label: string;
+  calories: number;
+  metGoal: boolean;
+}
+
+interface DailyCalorieRow {
+  dateKey: string;
+  totalCalories: number;
+}
+
+export default function StatsScreen() {
+  const { colors } = useTheme();
+  const { profile } = useProfileStore();
+  const { goals } = useFoodStore();
+  const [period, setPeriod] = useState<Period>("weekly");
+  const [stats, setStats] = useState<DayStats[]>([]);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [avgCalories, setAvgCalories] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const dbRef = useRef<SQLite.SQLiteDatabase | null>(null);
+
+  const isGainingWeight = profile?.weightGoal === "gain";
+
+  useFocusEffect(
+    useCallback(() => {
+      loadStats();
+    }, [period, profile?.weightGoal, goals.calorieGoal])
+  );
+
+  const getDatabase = async () => {
+    if (!dbRef.current) {
+      dbRef.current = await SQLite.openDatabaseAsync("snacktrack.db");
+    }
+    return dbRef.current;
+  };
+
+  const loadStats = async () => {
+    try {
+      setIsLoading(true);
+      const db = await getDatabase();
+
+      const days = period === "weekly" ? 7 : 30;
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+
+      const startDate = new Date(today);
+      startDate.setDate(startDate.getDate() - days + 1);
+      startDate.setHours(0, 0, 0, 0);
+
+      const dailyData = await db.getAllAsync<DailyCalorieRow>(
+        `SELECT date(timestamp/1000, 'unixepoch', 'localtime') as dateKey, 
+                SUM(calories) as totalCalories 
+         FROM food_items 
+         WHERE timestamp >= ? AND timestamp <= ? 
+         GROUP BY dateKey 
+         ORDER BY dateKey ASC`,
+        [startDate.getTime(), today.getTime()]
+      );
+
+      const dailyCalories: Record<string, number> = {};
+      dailyData.forEach((row) => {
+        dailyCalories[row.dateKey] = row.totalCalories;
+      });
+
+      const statsArray: DayStats[] = [];
+      let totalCalories = 0;
+      let daysWithData = 0;
+
+      for (let i = 0; i < days; i++) {
+        const date = new Date(startDate);
+        date.setDate(date.getDate() + i);
+        const dateKey = date.toISOString().split("T")[0];
+        const calories = dailyCalories[dateKey] || 0;
+
+        let label: string;
+        if (period === "weekly") {
+          label = date.toLocaleDateString("en-US", { weekday: "short" });
+        } else {
+          label = date.getDate().toString();
+        }
+
+        const metGoal = isGainingWeight
+          ? calories >= goals.calorieGoal
+          : calories > 0 && calories <= goals.calorieGoal;
+
+        statsArray.push({ date: dateKey, label, calories, metGoal });
+
+        if (calories > 0) {
+          totalCalories += calories;
+          daysWithData++;
+        }
+      }
+
+      setStats(statsArray);
+      setAvgCalories(daysWithData > 0 ? Math.round(totalCalories / daysWithData) : 0);
+
+      // Calculate streaks
+      const allDailyData = await db.getAllAsync<DailyCalorieRow>(
+        `SELECT date(timestamp/1000, 'unixepoch', 'localtime') as dateKey, 
+                SUM(calories) as totalCalories 
+         FROM food_items 
+         GROUP BY dateKey 
+         ORDER BY dateKey DESC`
+      );
+
+      const allDailyCalories: Record<string, number> = {};
+      allDailyData.forEach((row) => {
+        allDailyCalories[row.dateKey] = row.totalCalories;
+      });
+
+      let current = 0;
+      const checkDate = new Date();
+      checkDate.setHours(0, 0, 0, 0);
+
+      const todayKey = checkDate.toISOString().split("T")[0];
+      if (!allDailyCalories[todayKey]) {
+        checkDate.setDate(checkDate.getDate() - 1);
+      }
+
+      while (true) {
+        const dateKey = checkDate.toISOString().split("T")[0];
+        const calories = allDailyCalories[dateKey] || 0;
+
+        const metGoal = isGainingWeight
+          ? calories >= goals.calorieGoal
+          : calories > 0 && calories <= goals.calorieGoal;
+
+        if (metGoal) {
+          current++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else {
+          break;
+        }
+      }
+
+      let best = 0;
+      let tempStreak = 0;
+      const sortedDates = Object.keys(allDailyCalories).sort();
+      for (const dateKey of sortedDates) {
+        const calories = allDailyCalories[dateKey];
+        const metGoal = isGainingWeight
+          ? calories >= goals.calorieGoal
+          : calories > 0 && calories <= goals.calorieGoal;
+
+        if (metGoal) {
+          tempStreak++;
+          best = Math.max(best, tempStreak);
+        } else {
+          tempStreak = 0;
+        }
+      }
+
+      setCurrentStreak(current);
+      setBestStreak(Math.max(best, current));
+    } catch (error) {
+      console.error("Error loading stats:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const maxCalories = Math.max(...stats.map((s) => s.calories), goals.calorieGoal, 1);
+  const styles = createStyles(colors);
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container} edges={["top"]}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Statistics</Text>
+          <Text style={styles.headerSubtitle}>Track your progress</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Statistics</Text>
+        <Text style={styles.headerSubtitle}>Track your progress</Text>
+      </View>
+
+      {/* Period Toggle */}
+      <View style={styles.toggleContainer}>
+        <TouchableOpacity
+          style={[styles.toggleButton, period === "weekly" && styles.toggleButtonActive]}
+          onPress={() => setPeriod("weekly")}
+        >
+          <Text style={[styles.toggleText, period === "weekly" && styles.toggleTextActive]}>
+            Weekly
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.toggleButton, period === "monthly" && styles.toggleButtonActive]}
+          onPress={() => setPeriod("monthly")}
+        >
+          <Text style={[styles.toggleText, period === "monthly" && styles.toggleTextActive]}>
+            Monthly
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        {/* Stats Cards */}
+        <View style={styles.statsRow}>
+          <View style={styles.statCard}>
+            <View style={[styles.statIconContainer, { backgroundColor: colors.primaryBg }]}>
+              <Ionicons name="flame" size={24} color={colors.primary} />
+            </View>
+            <Text style={styles.statValue}>{currentStreak}</Text>
+            <Text style={styles.statLabel}>Current Streak</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIconContainer, { backgroundColor: "#FEF3C7" }]}>
+              <Ionicons name="trophy" size={24} color="#F59E0B" />
+            </View>
+            <Text style={styles.statValue}>{bestStreak}</Text>
+            <Text style={styles.statLabel}>Best Streak</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={[styles.statIconContainer, { backgroundColor: "#EDE9FE" }]}>
+              <Ionicons name="analytics" size={24} color="#8B5CF6" />
+            </View>
+            <Text style={styles.statValue}>{avgCalories}</Text>
+            <Text style={styles.statLabel}>Avg. Calories</Text>
+          </View>
+        </View>
+
+        {/* Chart */}
+        <CalorieChart
+          stats={stats}
+          period={period}
+          calorieGoal={goals.calorieGoal}
+          maxCalories={maxCalories}
+        />
+
+        {/* Summary Card */}
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>
+            {period === "weekly" ? "This Week" : "This Month"}
+          </Text>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Days with goal met</Text>
+            <Text style={styles.summaryValue}>
+              {stats.filter((s) => s.metGoal).length} / {stats.filter((s) => s.calories > 0).length || stats.length}
+            </Text>
+          </View>
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Success rate</Text>
+            <Text style={styles.summaryValue}>
+              {stats.filter((s) => s.calories > 0).length > 0
+                ? Math.round((stats.filter((s) => s.metGoal).length / stats.filter((s) => s.calories > 0).length) * 100)
+                : 0}
+              %
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.spacer} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const createStyles = (colors: any) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      paddingHorizontal: spacing.lg,
+      paddingTop: spacing.sm,
+      paddingBottom: spacing.md,
+    },
+    headerTitle: {
+      fontSize: typography.xxl,
+      fontFamily: typography.fontBold,
+      color: colors.textPrimary,
+    },
+    headerSubtitle: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontRegular,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    toggleContainer: {
+      flexDirection: "row",
+      marginHorizontal: spacing.lg,
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: 4,
+      marginBottom: spacing.lg,
+    },
+    toggleButton: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      alignItems: "center",
+      borderRadius: borderRadius.md,
+    },
+    toggleButtonActive: {
+      backgroundColor: colors.primary,
+    },
+    toggleText: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontMedium,
+      color: colors.textMuted,
+    },
+    toggleTextActive: {
+      color: colors.textInverse,
+    },
+    scrollContainer: {
+      flex: 1,
+    },
+    statsRow: {
+      flexDirection: "row",
+      paddingHorizontal: spacing.lg,
+      gap: spacing.sm,
+      marginBottom: spacing.lg,
+    },
+    statCard: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      alignItems: "center",
+    },
+    statIconContainer: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: spacing.sm,
+    },
+    statValue: {
+      fontSize: typography.xl,
+      fontFamily: typography.fontBold,
+      color: colors.textPrimary,
+    },
+    statLabel: {
+      fontSize: typography.xs,
+      fontFamily: typography.fontRegular,
+      color: colors.textMuted,
+      textAlign: "center",
+      marginTop: 2,
+    },
+    chartContainer: {
+      backgroundColor: colors.surface,
+      marginHorizontal: spacing.lg,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+      marginBottom: spacing.lg,
+    },
+    chartTitle: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.sm,
+    },
+    goalIndicator: {
+      flexDirection: "row",
+      alignItems: "center",
+      marginBottom: spacing.md,
+    },
+    goalLine: {
+      width: 20,
+      height: 2,
+      marginRight: spacing.sm,
+    },
+    goalText: {
+      fontSize: typography.xs,
+      fontFamily: typography.fontRegular,
+      color: colors.textMuted,
+    },
+    chartContent: {
+      position: "relative",
+      paddingBottom: spacing.md,
+    },
+    goalReferenceLine: {
+      position: "absolute",
+      left: 0,
+      right: 0,
+      height: 2,
+      borderRadius: 1,
+      opacity: 0.3,
+      zIndex: 1,
+    },
+    monthlyScrollContent: {
+      paddingRight: spacing.lg,
+    },
+    barsContainer: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      justifyContent: "space-between",
+    },
+    monthlyBarsContainer: {
+      justifyContent: "flex-start",
+    },
+    barWrapper: {
+      alignItems: "center",
+    },
+    barContainer: {
+      justifyContent: "flex-end",
+    },
+    bar: {
+      borderRadius: 3,
+    },
+    barLabel: {
+      fontSize: 10,
+      fontFamily: typography.fontRegular,
+      color: colors.textMuted,
+      marginTop: spacing.xs,
+      textAlign: "center",
+    },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    legend: {
+      flexDirection: "row",
+      justifyContent: "center",
+      gap: spacing.lg,
+      marginTop: spacing.md,
+    },
+    legendItem: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    legendDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      marginRight: spacing.xs,
+    },
+    legendText: {
+      fontSize: typography.xs,
+      fontFamily: typography.fontRegular,
+      color: colors.textMuted,
+    },
+    summaryCard: {
+      backgroundColor: colors.surface,
+      marginHorizontal: spacing.lg,
+      borderRadius: borderRadius.lg,
+      padding: spacing.lg,
+    },
+    summaryTitle: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.md,
+    },
+    summaryRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      marginBottom: spacing.sm,
+    },
+    summaryLabel: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontRegular,
+      color: colors.textMuted,
+    },
+    summaryValue: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontSemibold,
+      color: colors.textPrimary,
+    },
+    spacer: {
+      height: 40,
+    },
+  });
