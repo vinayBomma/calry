@@ -8,8 +8,8 @@ import {
   Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../lib/ThemeContext";
-import { spacing, typography, borderRadius, shadows } from "../lib/theme";
+import { useTheme } from "../../lib/ThemeContext";
+import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
 
 interface ConfirmDialogProps {
   visible: boolean;

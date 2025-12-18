@@ -10,28 +10,14 @@ import {
   Platform,
   ActivityIndicator,
   Modal,
-  Pressable,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { FoodItem } from "../lib/models/food";
-import { getFoodNutritionInfo } from "../lib/gemini";
-import { useTheme } from "../lib/ThemeContext";
-import { spacing, typography, shadows, borderRadius } from "../lib/theme";
-
-type MealType = "breakfast" | "lunch" | "dinner" | "snack";
-
-interface MealOption {
-  type: MealType;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}
-
-const mealOptions: MealOption[] = [
-  { type: "breakfast", label: "Breakfast", icon: "sunny-outline" },
-  { type: "lunch", label: "Lunch", icon: "restaurant-outline" },
-  { type: "dinner", label: "Dinner", icon: "moon-outline" },
-  { type: "snack", label: "Snack", icon: "cafe-outline" },
-];
+import { FoodItem } from "../../lib/models/food";
+import { getFoodNutritionInfo } from "../../lib/gemini";
+import { useTheme } from "../../lib/ThemeContext";
+import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
+import { MEAL_OPTIONS, type MealType } from "../../lib/hooks";
 
 interface EditMealModalProps {
   visible: boolean;
@@ -107,12 +93,13 @@ export function EditMealModal({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.container}
-      >
-        {/* Header */}
-        <View style={styles.header}>
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.keyboardView}
+        >
+          {/* Header */}
+          <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.headerButton}>
             <Text style={styles.cancelText}>Cancel</Text>
           </TouchableOpacity>
@@ -160,7 +147,18 @@ export function EditMealModal({
                 textAlignVertical="top"
                 value={description}
                 onChangeText={setDescription}
+                maxLength={200}
               />
+              <Text style={{ 
+                textAlign: 'right', 
+                color: description.length >= 200 ? 'red' : colors.textMuted,
+                fontSize: 12,
+                marginTop: 4,
+                marginRight: 8,
+                marginBottom: 4
+              }}>
+                {description.length}/200
+              </Text>
             </View>
             {hasDescriptionChanged && (
               <View style={styles.reanalyzeNote}>
@@ -176,7 +174,7 @@ export function EditMealModal({
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Meal Type</Text>
             <View style={styles.mealTypeGrid}>
-              {mealOptions.map((option) => (
+              {MEAL_OPTIONS.map((option) => (
                 <TouchableOpacity
                   key={option.type}
                   style={[
@@ -253,7 +251,8 @@ export function EditMealModal({
             </View>
           )}
         </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </Modal>
   );
 }
@@ -263,6 +262,9 @@ const createStyles = (colors: any) =>
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    keyboardView: {
+      flex: 1,
     },
     header: {
       flexDirection: "row",

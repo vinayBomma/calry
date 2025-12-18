@@ -1,4 +1,3 @@
-import React from "react";
 import {
   StyleSheet,
   View,
@@ -8,8 +7,9 @@ import {
   Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../lib/ThemeContext";
-import { spacing, typography, borderRadius, shadows } from "../lib/theme";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "../../lib/ThemeContext";
+import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
 
 interface ActionOption {
   label: string;
@@ -32,6 +32,7 @@ export function ActionSheet({
   options,
 }: ActionSheetProps) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = createStyles(colors);
 
   return (
@@ -42,7 +43,10 @@ export function ActionSheet({
       onRequestClose={onClose}
     >
       <Pressable style={styles.overlay} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={(e) => e.stopPropagation()}>
+        <Pressable
+          style={[styles.sheet, { paddingBottom: insets.bottom + spacing.lg }]}
+          onPress={(e) => e.stopPropagation()}
+        >
           {title && <Text style={styles.title}>{title}</Text>}
 
           <View style={styles.optionsContainer}>
@@ -113,7 +117,6 @@ const createStyles = (colors: any) =>
       borderTopLeftRadius: borderRadius.xl,
       borderTopRightRadius: borderRadius.xl,
       paddingTop: spacing.lg,
-      paddingBottom: spacing.xxxl,
       paddingHorizontal: spacing.lg,
     },
     title: {
