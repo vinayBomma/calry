@@ -1,15 +1,20 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
-import { useCallback } from "react";
+import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { FoodProvider } from "../lib/FoodContext";
 import { ThemeProvider, useTheme } from "../lib/ThemeContext";
+import { useFoodStore } from "../store";
 import { lightColors } from "../lib/theme";
 
 function RootLayoutContent() {
   const { colors, isDark } = useTheme();
+  const loadData = useFoodStore((state) => state.loadData);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   return (
     <>
@@ -87,9 +92,7 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <FoodProvider>
-          <RootLayoutContent />
-        </FoodProvider>
+        <RootLayoutContent />
       </ThemeProvider>
     </SafeAreaProvider>
   );
