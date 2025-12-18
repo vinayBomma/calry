@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   StyleSheet,
   View,
@@ -14,65 +14,47 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { FoodItem } from "../lib/models/food";
-import { getFoodNutritionInfo, isGeminiInitialized } from "../lib/gemini";
-import { useFoodContext } from "../lib/FoodContext";
+import { getFoodNutritionInfo } from "../lib/gemini";
+import { useFoodStore } from "../store";
 import { useTheme } from "../lib/ThemeContext";
 import { spacing, typography, shadows, borderRadius } from "../lib/theme";
+import { MEAL_OPTIONS, getSuggestedMealType, type MealType } from "../lib/hooks";
+import { AlertModal } from "../components/modals";
 
-type MealType = "breakfast" | "lunch" | "dinner" | "snack";
-
-interface MealOption {
-  type: MealType;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  timeRange: string;
-}
-
-const mealOptions: MealOption[] = [
-  {
-    type: "breakfast",
-    label: "Breakfast",
-    icon: "sunny-outline",
-    timeRange: "6 AM - 10 AM",
-  },
-  {
-    type: "lunch",
-    label: "Lunch",
-    icon: "restaurant-outline",
-    timeRange: "11 AM - 2 PM",
-  },
-  {
-    type: "dinner",
-    label: "Dinner",
-    icon: "moon-outline",
-    timeRange: "6 PM - 9 PM",
-  },
-  {
-    type: "snack",
-    label: "Snack",
-    icon: "cafe-outline",
-    timeRange: "Anytime",
-  },
-];
-
-// Suggest meal type based on current time
-const getSuggestedMealType = (): MealType => {
-  const hour = new Date().getHours();
-
-  if (hour >= 6 && hour < 10) return "breakfast";
-  if (hour >= 11 && hour < 14) return "lunch";
-  if (hour >= 18 && hour < 21) return "dinner";
-  return "snack";
-};
+type Tab = "ai" | "favourites";
 
 export default function AddMealScreen() {
-  const { addFoodItem } = useFoodContext();
+  const { addFoodItem, favourites } = useFoodStore();
   const { colors } = useTheme();
+  const [activeTab, setActiveTab] = useState<Tab>("ai");
   const [selectedMealType, setSelectedMealType] = useState<MealType>(
     getSuggestedMealType()
   );
   const [description, setDescription] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{
+    visible: boolean;
+    title: string;
+    message: string;
+    type: "success" | "error" | "info";
+  }>({
+    visible: false,
+    title: "",
+    message: "",
+    type: "info",
+  });
+
+  const showAlert = (
+    title: string,
+    message: string,
+    type: "success" | "error" | "info" = "info"
+  ) => {
+    setAlertConfig({ visible: true, title, message, type });
+  };
+
+  const hideAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, visible: false }));
+  };
 
   const handleAddMeal = async () => {
     if (!description.trim()) {
@@ -84,9 +66,6 @@ export default function AddMealScreen() {
     try {
       // Get nutrition info from Gemini
       const nutritionInfo = await getFoodNutritionInfo(description);
-
-      // Log the Gemini response
-      console.log("Gemini response:", nutritionInfo);
 
       const newFoodItem: FoodItem = {
         id: Date.now().toString(),
@@ -102,14 +81,36 @@ export default function AddMealScreen() {
 
       // Save to context (now persists to SQLite)
       await addFoodItem(newFoodItem);
-      console.log("New food item added:", newFoodItem);
 
       // Navigate back to home
       router.back();
     } catch (error) {
       console.error("Error adding meal:", error);
+      showAlert("Error", "Failed to analyze meal. Please try again.", "error");
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleAddFavourite = async (fav: any) => {
+    try {
+      const newFoodItem: FoodItem = {
+        id: Date.now().toString(),
+        name: fav.name,
+        description: "Added from favourites",
+        calories: fav.calories,
+        protein: fav.protein,
+        carbs: fav.carbs,
+        fat: fav.fat,
+        timestamp: Date.now(),
+        mealType: selectedMealType,
+      };
+      
+      await addFoodItem(newFoodItem);
+      router.back();
+    } catch (error) {
+      console.error("Error adding favourite meal:", error);
+      showAlert("Error", "Failed to add favourite meal.", "error");
     }
   };
 
@@ -126,21 +127,21 @@ export default function AddMealScreen() {
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Meal Type Selection */}
+          {/* Meal Type Selection - Always Visible */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>What meal is this?</Text>
             <Text style={styles.sectionSubtitle}>
               Based on the time, we suggest:{" "}
               <Text style={styles.suggestionText}>
                 {
-                  mealOptions.find((m) => m.type === getSuggestedMealType())
+                  MEAL_OPTIONS.find((m) => m.type === getSuggestedMealType())
                     ?.label
                 }
               </Text>
             </Text>
 
             <View style={styles.mealOptionsContainer}>
-              {mealOptions.map((option) => (
+              {MEAL_OPTIONS.map((option) => (
                 <TouchableOpacity
                   key={option.type}
                   style={[
@@ -166,88 +167,136 @@ export default function AddMealScreen() {
                   >
                     {option.label}
                   </Text>
-                  <Text
-                    style={[
-                      styles.mealOptionTime,
-                      selectedMealType === option.type &&
-                        styles.mealOptionTimeSelected,
-                    ]}
-                  >
-                    {option.timeRange}
-                  </Text>
                 </TouchableOpacity>
               ))}
             </View>
           </View>
 
-          {/* Food Description Input */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>What did you eat?</Text>
-            <Text style={styles.sectionSubtitle}>
-              Describe your meal in detail for accurate nutrition analysis
-            </Text>
-
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="e.g., 2 eggs, toast with butter, and a glass of orange juice"
-                placeholderTextColor="#999"
-                multiline
-                numberOfLines={4}
-                textAlignVertical="top"
-                value={description}
-                onChangeText={setDescription}
-              />
-            </View>
-
-            <View style={styles.tipContainer}>
-              <Ionicons name="bulb-outline" size={18} color="#FF9800" />
-              <Text style={styles.tipText}>
-                Tip: Include portions and cooking methods for better estimates
-              </Text>
-            </View>
-            <View style={styles.tipContainer}>
-              <Ionicons
-                name="language-outline"
-                size={18}
-                color={colors.primary}
-              />
-              <Text style={styles.tipText}>
-                You can use local food names in any language!
-              </Text>
-            </View>
+          {/* Tabs */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity 
+              style={[styles.tab, activeTab === "ai" && styles.tabActive]}
+              onPress={() => setActiveTab("ai")}
+            >
+              <Text style={[styles.tabText, activeTab === "ai" && styles.tabTextActive]}>AI Input</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.tab, activeTab === "favourites" && styles.tabActive]}
+              onPress={() => setActiveTab("favourites")}
+            >
+              <Text style={[styles.tabText, activeTab === "favourites" && styles.tabTextActive]}>Favourites</Text>
+            </TouchableOpacity>
           </View>
+
+          {activeTab === "ai" ? (
+            /* AI Input Section */
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>What did you eat?</Text>
+              <Text style={styles.sectionSubtitle}>
+                Describe your meal in detail for accurate nutrition analysis
+              </Text>
+
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g., 2 eggs, toast with butter, and a glass of orange juice"
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                  value={description}
+                  onChangeText={setDescription}
+                  maxLength={200}
+                />
+                <Text style={{ 
+                  textAlign: 'right', 
+                  color: description.length >= 200 ? 'red' : colors.textMuted,
+                  fontSize: 12,
+                  marginTop: 4
+                }}>
+                  {description.length}/200
+                </Text>
+              </View>
+
+              <View style={styles.tipContainer}>
+                <Ionicons name="bulb-outline" size={18} color="#FF9800" />
+                <Text style={styles.tipText}>
+                  Tip: Include portions and cooking methods for better estimates
+                </Text>
+              </View>
+            </View>
+          ) : (
+            /* Favourites Section */
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Your Favourites</Text>
+              {favourites.length === 0 ? (
+                <View style={styles.emptyState}>
+                  <Ionicons name="star-outline" size={48} color={colors.textMuted} />
+                  <Text style={styles.emptyStateText}>No favourites yet</Text>
+                  <Text style={styles.emptyStateSubtext}>Save meals from your history or settings to see them here.</Text>
+                </View>
+              ) : (
+                <View style={styles.favouritesList}>
+                  {favourites.map((fav) => (
+                    <TouchableOpacity
+                      key={fav.id}
+                      style={styles.favouriteItem}
+                      onPress={() => handleAddFavourite(fav)}
+                    >
+                      <View style={styles.favouriteContent}>
+                        <Text style={styles.favouriteName}>{fav.name}</Text>
+                        <Text style={styles.favouriteCalories}>{fav.calories} kcal</Text>
+                        <Text style={styles.favouriteMacros}>
+                          P: {Math.round(fav.protein)}g • C: {Math.round(fav.carbs)}g • F: {Math.round(fav.fat)}g
+                        </Text>
+                      </View>
+                      <Ionicons name="add-circle" size={28} color={colors.primary} />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
         </ScrollView>
 
-        {/* Add Button */}
-        <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.addButton,
-              (!description.trim() || isAnalyzing) && styles.addButtonDisabled,
-            ]}
-            onPress={handleAddMeal}
-            disabled={!description.trim() || isAnalyzing}
-          >
-            {isAnalyzing ? (
-              <>
-                <ActivityIndicator color="white" style={styles.buttonIcon} />
-                <Text style={styles.addButtonText}>Analyzing...</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons
-                  name="add-circle-outline"
-                  size={24}
-                  color="white"
-                  style={styles.buttonIcon}
-                />
-                <Text style={styles.addButtonText}>Add Meal</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+        {/* Add Button - Only for AI Tab */}
+        {activeTab === "ai" && (
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[
+                styles.addButton,
+                (!description.trim() || isAnalyzing) && styles.addButtonDisabled,
+              ]}
+              onPress={handleAddMeal}
+              disabled={!description.trim() || isAnalyzing}
+            >
+              {isAnalyzing ? (
+                <>
+                  <ActivityIndicator color="white" style={styles.buttonIcon} />
+                  <Text style={styles.addButtonText}>Analyzing...</Text>
+                </>
+              ) : (
+                <>
+                  <Ionicons
+                    name="add-circle-outline"
+                    size={24}
+                    color="white"
+                    style={styles.buttonIcon}
+                  />
+                  <Text style={styles.addButtonText}>Add Meal</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
       </KeyboardAvoidingView>
+      <AlertModal
+        visible={alertConfig.visible}
+        onClose={hideAlert}
+        title={alertConfig.title}
+        message={alertConfig.message}
+        type={alertConfig.type}
+      />
     </SafeAreaView>
   );
 }
@@ -272,17 +321,18 @@ const createStyles = (colors: any) =>
     },
     sectionTitle: {
       fontSize: typography.xl,
-      fontWeight: typography.bold,
+      fontFamily: typography.fontBold,
       color: colors.textPrimary,
       marginBottom: spacing.xs,
     },
     sectionSubtitle: {
       fontSize: typography.sm,
+      fontFamily: typography.fontRegular,
       color: colors.textSecondary,
       marginBottom: spacing.lg,
     },
     suggestionText: {
-      fontWeight: typography.semibold,
+      fontFamily: typography.fontSemibold,
       color: colors.primary,
     },
     mealOptionsContainer: {
@@ -301,25 +351,17 @@ const createStyles = (colors: any) =>
       ...shadows.sm,
     },
     mealOptionSelected: {
-      backgroundColor: colors.primary,
+      backgroundColor: colors.surface,
       borderColor: colors.primary,
     },
     mealOptionLabel: {
       fontSize: typography.base,
-      fontWeight: typography.semibold,
+      fontFamily: typography.fontSemibold,
       color: colors.textPrimary,
       marginTop: spacing.sm,
     },
     mealOptionLabelSelected: {
-      color: colors.textInverse,
-    },
-    mealOptionTime: {
-      fontSize: typography.xs,
-      color: colors.textMuted,
-      marginTop: spacing.xs,
-    },
-    mealOptionTimeSelected: {
-      color: "rgba(255, 255, 255, 0.8)",
+      color: colors.primary,
     },
     inputContainer: {
       backgroundColor: colors.surface,
@@ -329,6 +371,7 @@ const createStyles = (colors: any) =>
     },
     textInput: {
       fontSize: typography.base,
+      fontFamily: typography.fontRegular, // Added font family
       color: colors.textPrimary,
       minHeight: 120,
       lineHeight: 24,
@@ -341,6 +384,7 @@ const createStyles = (colors: any) =>
     },
     tipText: {
       fontSize: typography.sm,
+      fontFamily: typography.fontRegular,
       color: colors.textSecondary,
       marginLeft: spacing.sm,
       flex: 1,
@@ -368,6 +412,80 @@ const createStyles = (colors: any) =>
     addButtonText: {
       color: colors.textInverse,
       fontSize: typography.lg,
-      fontWeight: typography.bold,
+      fontFamily: typography.fontBold,
+    },
+    tabContainer: {
+      flexDirection: "row",
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.md,
+      padding: 4,
+      marginBottom: spacing.xl,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: spacing.sm,
+      alignItems: "center",
+      borderRadius: borderRadius.sm,
+    },
+    tabActive: {
+      backgroundColor: colors.primaryBg,
+    },
+    tabText: {
+      fontSize: typography.base,
+      fontFamily: typography.fontMedium,
+      color: colors.textSecondary,
+    },
+    tabTextActive: {
+      color: colors.primary,
+      fontFamily: typography.fontSemibold,
+    },
+    favouritesList: {
+      gap: spacing.md,
+    },
+    favouriteItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      backgroundColor: colors.surface,
+      padding: spacing.md,
+      borderRadius: borderRadius.md,
+      ...shadows.sm,
+    },
+    favouriteContent: {
+      flex: 1,
+    },
+    favouriteName: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.textPrimary,
+    },
+    favouriteCalories: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontMedium,
+      color: colors.primary,
+      marginTop: 2,
+    },
+    favouriteMacros: {
+      fontSize: typography.xs,
+      fontFamily: typography.fontRegular,
+      color: colors.textMuted,
+      marginTop: 2,
+    },
+    emptyState: {
+      alignItems: "center",
+      justifyContent: "center",
+      padding: spacing.xl,
+      gap: spacing.md,
+    },
+    emptyStateText: {
+      fontSize: typography.lg,
+      fontFamily: typography.fontSemibold,
+      color: colors.textSecondary,
+    },
+    emptyStateSubtext: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontRegular,
+      color: colors.textMuted,
+      textAlign: "center",
     },
   });
