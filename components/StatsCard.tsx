@@ -44,8 +44,7 @@ export function StatsCard({ stats }: StatsCardProps) {
             styles.calorieProgress,
             {
               width: `${caloriePercentage}%`,
-              backgroundColor:
-                caloriePercentage >= 100 ? colors.warning : colors.primary,
+              backgroundColor: colors.primary,
             },
           ]}
         />
@@ -55,12 +54,12 @@ export function StatsCard({ stats }: StatsCardProps) {
         <Ionicons
           name={remaining > 0 ? "trending-up" : "checkmark-circle"}
           size={14}
-          color={remaining > 0 ? colors.success : colors.warning}
+          color={remaining > 0 ? colors.success : colors.primary}
         />
         <Text
           style={[
             styles.remainingText,
-            { color: remaining > 0 ? colors.success : colors.warning },
+            { color: remaining > 0 ? colors.success : colors.primary },
           ]}
         >
           {remaining > 0
