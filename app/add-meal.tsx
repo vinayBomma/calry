@@ -155,7 +155,9 @@ export default function AddMealScreen() {
                     name={option.icon}
                     size={28}
                     color={
-                      selectedMealType === option.type ? "white" : "#5E60CE"
+                      selectedMealType === option.type 
+                        ? colors.primary 
+                        : colors.textSecondary
                     }
                   />
                   <Text
@@ -351,7 +353,7 @@ const createStyles = (colors: any) =>
       ...shadows.sm,
     },
     mealOptionSelected: {
-      backgroundColor: colors.surface,
+      backgroundColor: colors.primaryBg,
       borderColor: colors.primary,
     },
     mealOptionLabel: {
