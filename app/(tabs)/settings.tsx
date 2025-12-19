@@ -28,7 +28,6 @@ import { useFoodStore } from "../../store";
 import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
 import { GoalInput } from "../../components/settings";
 import { ProfileModal, FavouritesModal, AlertModal, ConfirmDialog } from "../../components/modals";
-import { generateMockData } from "../../lib/mock-data";
 import { backupDatabase, restoreDatabase } from "../../lib/backup";
 
 export default function SettingsScreen() {
@@ -139,17 +138,7 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleGenerateMockData = async () => {
-    try {
-      await generateMockData();
-      // Refresh the store to show new data
-      await useFoodStore.getState().loadFoodItems();
-      showAlert("Success", "Generated 15 days of test data!", "success");
-    } catch (error) {
-      console.error("Error generating mock data:", error);
-      showAlert("Error", "Failed to generate mock data.", "error");
-    }
-  };
+
 
   const handleCancelEdit = () => {
     setEditedGoals(goals);
@@ -388,33 +377,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* About Section */}
-
-        {/* Debug Section */}
-        {/* <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Developer Tools</Text>
-          <View style={styles.settingsCard}>
-            <TouchableOpacity
-              style={styles.settingItem}
-              onPress={handleGenerateMockData}
-              activeOpacity={0.7}
-            >
-              <View style={styles.settingIcon}>
-                <Ionicons name="bug-outline" size={22} color={colors.primary} />
-              </View>
-              <View style={styles.settingContent}>
-                <Text style={styles.settingTitle}>Generate Mock Data</Text>
-                <Text style={styles.settingSubtitle}>
-                  Fills history with 15 days of test data
-                </Text>
-              </View>
-              <Ionicons
-                name="flask-outline"
-                size={20}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
-          </View>
-        </View> */}
+        
 
         <View style={styles.spacer} />
       </ScrollView>
