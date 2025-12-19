@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { StyleSheet, View, Text, TouchableOpacity, Platform } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useFoodStore } from "../store";
 import { useTheme } from "../lib/ThemeContext";
@@ -29,22 +30,27 @@ export function Header() {
   return (
     <View style={styles.container}>
       <View style={styles.leftSection}>
-        {/* Date Card */}
-        <TouchableOpacity 
-          style={styles.dateCard}
-          onPress={() => setShowDatePicker(true)}
-          activeOpacity={0.7}
-        >
+        {/* Date Card (Static) */}
+        <View style={styles.dateCard}>
           <Text style={styles.dayName}>{dayName}</Text>
           <Text style={styles.dayNumber}>{dayNumber}</Text>
           <Text style={styles.monthName}>{monthName}</Text>
-        </TouchableOpacity>
+        </View>
 
         <View style={styles.titleContainer}>
           <Text style={styles.title}>SnackTrack</Text>
           <Text style={styles.subtitle}>Track your nutrition</Text>
         </View>
       </View>
+
+      <TouchableOpacity
+        style={styles.calendarButton}
+        onPress={() => setShowDatePicker(true)}
+        activeOpacity={0.7}
+      >
+        <Ionicons name="calendar-outline" size={24} color={colors.primary} />
+      </TouchableOpacity>
+
 
       {showDatePicker && (
         <DateTimePicker
@@ -116,5 +122,15 @@ const createStyles = (colors: any) =>
       fontFamily: typography.fontMedium,
       color: colors.textMuted,
       marginTop: 2,
+    },
+    calendarButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      backgroundColor: colors.primaryBg,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: colors.primaryMuted,
     },
   });
