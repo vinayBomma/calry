@@ -1,22 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
   Text,
-  TextInput,
+  Modal,
   TouchableOpacity,
-  ScrollView,
+  TextInput,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
-  Modal,
+  ScrollView,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { FoodItem } from "../../lib/models/food";
-import { getFoodNutritionInfo } from "../../lib/gemini";
 import { useTheme } from "../../lib/ThemeContext";
-import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
+import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
 import { MEAL_OPTIONS, type MealType } from "../../lib/hooks";
 
 interface EditMealModalProps {
@@ -33,55 +30,36 @@ export function EditMealModal({
   onSave,
 }: EditMealModalProps) {
   const { colors } = useTheme();
-  const [description, setDescription] = useState(item.description || item.name);
-  const [selectedMealType, setSelectedMealType] = useState<MealType>(
-    item.mealType
-  );
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [name, setName] = useState(item.name);
+  const [calories, setCalories] = useState(item.calories.toString());
+  const [protein, setProtein] = useState(item.protein.toString());
+  const [carbs, setCarbs] = useState(item.carbs.toString());
+  const [fat, setFat] = useState(item.fat.toString());
+  const [mealType, setMealType] = useState<MealType>(item.mealType);
 
-  const originalDescription = item.description || item.name;
-  const hasDescriptionChanged = description.trim() !== originalDescription;
-  const hasMealTypeChanged = selectedMealType !== item.mealType;
-  const hasChanges = hasDescriptionChanged || hasMealTypeChanged;
+  useEffect(() => {
+    if (visible) {
+      setName(item.name);
+      setCalories(item.calories.toString());
+      setProtein(item.protein.toString());
+      setCarbs(item.carbs.toString());
+      setFat(item.fat.toString());
+      setMealType(item.mealType);
+    }
+  }, [visible, item]);
 
   const handleSave = async () => {
-    if (!description.trim()) {
-      setError("Please enter a description");
-      return;
-    }
-
-    setError(null);
-    setIsAnalyzing(true);
-
-    try {
-      let updatedItem: FoodItem = {
-        ...item,
-        mealType: selectedMealType,
-      };
-
-      // If description changed, re-analyze with Gemini
-      if (hasDescriptionChanged) {
-        const nutritionInfo = await getFoodNutritionInfo(description);
-        updatedItem = {
-          ...updatedItem,
-          name: nutritionInfo.name || description,
-          description: description.trim(),
-          calories: nutritionInfo.calories,
-          protein: nutritionInfo.protein,
-          carbs: nutritionInfo.carbs,
-          fat: nutritionInfo.fat,
-        };
-      }
-
-      await onSave(updatedItem);
-      onClose();
-    } catch (err) {
-      console.error("Error updating meal:", err);
-      setError("Failed to update meal. Please try again.");
-    } finally {
-      setIsAnalyzing(false);
-    }
+    const updatedItem: FoodItem = {
+      ...item,
+      name,
+      calories: Number(calories) || 0,
+      protein: Number(protein) || 0,
+      carbs: Number(carbs) || 0,
+      fat: Number(fat) || 0,
+      mealType,
+    };
+    await onSave(updatedItem);
+    onClose();
   };
 
   const styles = createStyles(colors);
@@ -89,170 +67,130 @@ export function EditMealModal({
   return (
     <Modal
       visible={visible}
+      transparent
       animationType="slide"
-      presentationStyle="pageSheet"
       onRequestClose={onClose}
     >
-      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.keyboardView}
-        >
-          {/* Header */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={styles.container}
+      >
+        <View style={styles.content}>
           <View style={styles.header}>
-          <TouchableOpacity onPress={onClose} style={styles.headerButton}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Edit Meal</Text>
-          <TouchableOpacity
-            onPress={handleSave}
-            style={styles.headerButton}
-            disabled={!hasChanges || isAnalyzing}
-          >
-            {isAnalyzing ? (
-              <ActivityIndicator size="small" color={colors.primary} />
-            ) : (
-              <Text
-                style={[
-                  styles.saveText,
-                  (!hasChanges || isAnalyzing) && styles.saveTextDisabled,
-                ]}
-              >
-                Save
-              </Text>
-            )}
-          </TouchableOpacity>
-        </View>
+            <Text style={styles.title}>Edit Meal</Text>
+            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Ionicons name="close" size={24} color={colors.textSecondary} />
+            </TouchableOpacity>
+          </View>
 
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.contentContainer}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Description Input */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Food Description</Text>
-            <Text style={styles.sectionSubtitle}>
-              {hasDescriptionChanged
-                ? "Description changed - nutrition will be re-analyzed"
-                : "Edit the description to update nutrition info"}
-            </Text>
-            <View style={styles.inputContainer}>
+          <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Meal Name</Text>
               <TextInput
-                style={styles.textInput}
-                placeholder="Describe what you ate..."
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+                placeholder="e.g. Grilled Chicken Salad"
                 placeholderTextColor={colors.textMuted}
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-                value={description}
-                onChangeText={setDescription}
-                maxLength={200}
               />
-              <Text style={{ 
-                textAlign: 'right', 
-                color: description.length >= 200 ? 'red' : colors.textMuted,
-                fontSize: 12,
-                marginTop: 4,
-                marginRight: 8,
-                marginBottom: 4
-              }}>
-                {description.length}/200
-              </Text>
             </View>
-            {hasDescriptionChanged && (
-              <View style={styles.reanalyzeNote}>
-                <Ionicons name="sparkles" size={16} color={colors.primary} />
-                <Text style={styles.reanalyzeText}>
-                  AI will analyze and update nutrition values
-                </Text>
-              </View>
-            )}
-          </View>
 
-          {/* Meal Type Selection */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Meal Type</Text>
-            <View style={styles.mealTypeGrid}>
-              {MEAL_OPTIONS.map((option) => (
-                <TouchableOpacity
-                  key={option.type}
-                  style={[
-                    styles.mealTypeOption,
-                    selectedMealType === option.type && styles.mealTypeSelected,
-                  ]}
-                  onPress={() => setSelectedMealType(option.type)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons
-                    name={option.icon}
-                    size={24}
-                    color={
-                      selectedMealType === option.type
-                        ? colors.primary
-                        : colors.textSecondary
-                    }
-                  />
-                  <Text
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Meal Type</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.mealTypeContainer}
+              >
+                {MEAL_OPTIONS.map((option) => (
+                  <TouchableOpacity
+                    key={option.type}
                     style={[
-                      styles.mealTypeLabel,
-                      selectedMealType === option.type &&
-                        styles.mealTypeLabelSelected,
+                      styles.mealTypeChip,
+                      mealType === option.type && styles.mealTypeChipSelected,
                     ]}
+                    onPress={() => setMealType(option.type)}
                   >
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-
-          {/* Current Nutrition Info */}
-          {!hasDescriptionChanged && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Current Nutrition</Text>
-              <View style={styles.nutritionCard}>
-                <View style={styles.nutritionRow}>
-                  <View style={styles.nutritionItem}>
-                    <Ionicons name="flame" size={18} color={colors.primary} />
-                    <Text style={styles.nutritionValue}>{item.calories}</Text>
-                    <Text style={styles.nutritionLabel}>kcal</Text>
-                  </View>
-                  <View style={styles.nutritionItem}>
                     <Ionicons
-                      name="barbell-outline"
-                      size={18}
-                      color="#EF4444"
+                      name={option.icon}
+                      size={16}
+                      color={
+                        mealType === option.type 
+                          ? colors.primary 
+                          : colors.textSecondary
+                      }
                     />
-                    <Text style={styles.nutritionValue}>{item.protein}g</Text>
-                    <Text style={styles.nutritionLabel}>protein</Text>
-                  </View>
-                </View>
-                <View style={styles.nutritionRow}>
-                  <View style={styles.nutritionItem}>
-                    <Ionicons name="leaf-outline" size={18} color="#F59E0B" />
-                    <Text style={styles.nutritionValue}>{item.carbs}g</Text>
-                    <Text style={styles.nutritionLabel}>carbs</Text>
-                  </View>
-                  <View style={styles.nutritionItem}>
-                    <Ionicons name="water-outline" size={18} color="#3B82F6" />
-                    <Text style={styles.nutritionValue}>{item.fat}g</Text>
-                    <Text style={styles.nutritionLabel}>fat</Text>
-                  </View>
-                </View>
+                    <Text
+                      style={[
+                        styles.mealTypeLabel,
+                        mealType === option.type && styles.mealTypeLabelSelected,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Calories</Text>
+                <TextInput
+                  style={styles.input}
+                  value={calories}
+                  onChangeText={setCalories}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={colors.textMuted}
+                />
               </View>
             </View>
-          )}
 
-          {error && (
-            <View style={styles.errorContainer}>
-              <Ionicons name="warning-outline" size={18} color={colors.error} />
-              <Text style={styles.errorText}>{error}</Text>
+            <View style={styles.macrosContainer}>
+              <View style={styles.macroInput}>
+                <Text style={styles.label}>Protein (g)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={protein}
+                  onChangeText={setProtein}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={colors.textMuted}
+                />
+              </View>
+              <View style={styles.macroInput}>
+                <Text style={styles.label}>Carbs (g)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={carbs}
+                  onChangeText={setCarbs}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={colors.textMuted}
+                />
+              </View>
+              <View style={styles.macroInput}>
+                <Text style={styles.label}>Fat (g)</Text>
+                <TextInput
+                  style={styles.input}
+                  value={fat}
+                  onChangeText={setFat}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor={colors.textMuted}
+                />
+              </View>
             </View>
-          )}
-        </ScrollView>
-        </KeyboardAvoidingView>
-      </SafeAreaView>
+          </ScrollView>
+
+          <View style={styles.footer}>
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+              <Text style={styles.saveButtonText}>Save Changes</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -261,110 +199,103 @@ const createStyles = (colors: any) =>
   StyleSheet.create({
     container: {
       flex: 1,
-      backgroundColor: colors.background,
+      backgroundColor: "rgba(0, 0, 0, 0.5)",
+      justifyContent: "flex-end",
     },
-    keyboardView: {
-      flex: 1,
+    content: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: borderRadius.xl,
+      borderTopRightRadius: borderRadius.xl,
+      maxHeight: "90%",
+      paddingTop: spacing.lg,
     },
     header: {
       flexDirection: "row",
-      alignItems: "center",
       justifyContent: "space-between",
+      alignItems: "center",
       paddingHorizontal: spacing.lg,
-      paddingVertical: spacing.md,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.divider,
-      backgroundColor: colors.surface,
+      marginBottom: spacing.lg,
     },
-    headerButton: {
-      minWidth: 60,
-    },
-    headerTitle: {
-      fontSize: typography.lg,
-      fontFamily: typography.fontSemibold,
+    title: {
+      fontSize: typography.xl,
+      fontFamily: typography.fontBold,
       color: colors.textPrimary,
     },
-    cancelText: {
-      fontSize: typography.base,
-      fontFamily: typography.fontMedium,
-      color: colors.textSecondary,
+    closeButton: {
+      padding: spacing.xs,
     },
-    saveText: {
-      fontSize: typography.base,
-      fontFamily: typography.fontSemibold,
-      color: colors.primary,
-      textAlign: "right",
+    form: {
+      paddingHorizontal: spacing.lg,
     },
-    saveTextDisabled: {
-      color: colors.textMuted,
-    },
-    content: {
-      flex: 1,
-    },
-    contentContainer: {
-      padding: spacing.lg,
-    },
-    section: {
-      marginBottom: spacing.xl,
-    },
-    sectionTitle: {
-      fontSize: typography.base,
-      fontFamily: typography.fontSemibold,
-      color: colors.textPrimary,
-      marginBottom: spacing.xs,
-    },
-    sectionSubtitle: {
-      fontSize: typography.sm,
-      fontFamily: typography.fontRegular,
-      color: colors.textSecondary,
+    inputGroup: {
       marginBottom: spacing.md,
     },
-    inputContainer: {
-      backgroundColor: colors.surface,
-      borderRadius: borderRadius.lg,
-      borderWidth: 1,
-      borderColor: colors.divider,
-      ...shadows.sm,
+    label: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontMedium,
+      color: colors.textSecondary,
+      marginBottom: spacing.xs,
     },
-    textInput: {
+    input: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.md,
       padding: spacing.md,
       fontSize: typography.base,
       fontFamily: typography.fontRegular,
       color: colors.textPrimary,
-      minHeight: 80,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
-    reanalyzeNote: {
+    row: {
       flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.xs,
-      marginTop: spacing.sm,
-      paddingHorizontal: spacing.sm,
+      gap: spacing.md,
     },
-    reanalyzeText: {
-      fontSize: typography.sm,
-      fontFamily: typography.fontMedium,
-      color: colors.primary,
-    },
-    mealTypeGrid: {
+    macrosContainer: {
       flexDirection: "row",
-      flexWrap: "wrap",
-      gap: spacing.sm,
+      gap: spacing.md,
+      marginTop: spacing.xs,
     },
-    mealTypeOption: {
+    macroInput: {
       flex: 1,
-      minWidth: "45%",
+    },
+    footer: {
+      padding: spacing.lg,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      marginTop: spacing.md,
+      marginBottom: Platform.OS === 'ios' ? spacing.xl : spacing.md,
+    },
+    saveButton: {
+      backgroundColor: colors.primary,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      alignItems: "center",
+      ...shadows.sm,
+    },
+    saveButtonText: {
+      color: colors.textInverse,
+      fontSize: typography.base,
+      fontFamily: typography.fontBold,
+    },
+    mealTypeContainer: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      paddingVertical: spacing.xs,
+    },
+    mealTypeChip: {
       flexDirection: "row",
       alignItems: "center",
-      gap: spacing.sm,
-      padding: spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
       backgroundColor: colors.surface,
-      borderRadius: borderRadius.lg,
-      borderWidth: 2,
-      borderColor: colors.divider,
+      borderRadius: borderRadius.full,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: 6,
     },
-    mealTypeSelected: {
-      borderColor: colors.primary,
+    mealTypeChipSelected: {
       backgroundColor: colors.primaryBg,
+      borderColor: colors.primary,
     },
     mealTypeLabel: {
       fontSize: typography.sm,
@@ -373,46 +304,6 @@ const createStyles = (colors: any) =>
     },
     mealTypeLabelSelected: {
       color: colors.primary,
-    },
-    nutritionCard: {
-      backgroundColor: colors.surface,
-      borderRadius: borderRadius.lg,
-      padding: spacing.md,
-      ...shadows.sm,
-    },
-    nutritionRow: {
-      flexDirection: "row",
-      justifyContent: "space-around",
-      marginVertical: spacing.xs,
-    },
-    nutritionItem: {
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.xs,
-    },
-    nutritionValue: {
-      fontSize: typography.base,
       fontFamily: typography.fontSemibold,
-      color: colors.textPrimary,
-    },
-    nutritionLabel: {
-      fontSize: typography.sm,
-      fontFamily: typography.fontRegular,
-      color: colors.textMuted,
-    },
-    errorContainer: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.sm,
-      backgroundColor: "#FEE2E2",
-      padding: spacing.md,
-      borderRadius: borderRadius.md,
-    },
-    errorText: {
-      fontSize: typography.sm,
-      fontFamily: typography.fontMedium,
-      color: colors.error,
     },
   });

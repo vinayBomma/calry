@@ -22,6 +22,7 @@ interface FoodState {
   favourites: FavouriteMeal[];
   goals: DailyGoals;
   isLoading: boolean;
+  selectedDate: string;
 
   // Computed values
   totals: {
@@ -36,6 +37,7 @@ interface FoodState {
   loadFoodItems: () => Promise<void>;
   loadGoals: () => Promise<void>;
   loadFavourites: () => Promise<void>;
+  setSelectedDate: (date: string) => Promise<void>;
   addFoodItem: (item: Omit<FoodItem, "id" | "timestamp"> | FoodItem) => Promise<void>;
   deleteFoodItem: (id: string) => Promise<void>;
   updateFoodItem: (item: FoodItem) => Promise<void>;
@@ -61,13 +63,15 @@ export const useFoodStore = create<FoodState>((set, get) => ({
   favourites: [],
   goals: { calorieGoal: 2000, proteinGoal: 120, carbsGoal: 250, fatGoal: 65 },
   isLoading: false,
+  selectedDate: new Date().toISOString().split('T')[0], // Default to today YYYY-MM-DD
   totals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
 
   loadData: async () => {
     set({ isLoading: true });
     try {
+      const { selectedDate } = get();
       const [items, goals, favourites] = await Promise.all([
-        getAllFoodItems(),
+        getAllFoodItems(selectedDate),
         getDailyGoals(),
         getFavouriteMeals(),
       ]);
@@ -87,7 +91,8 @@ export const useFoodStore = create<FoodState>((set, get) => ({
   loadFoodItems: async () => {
     set({ isLoading: true });
     try {
-      const items = await getAllFoodItems();
+      const { selectedDate } = get();
+      const items = await getAllFoodItems(selectedDate);
       set({
         foodItems: items,
         totals: calculateTotals(items),
@@ -97,6 +102,11 @@ export const useFoodStore = create<FoodState>((set, get) => ({
       console.error("Failed to load food items:", error);
       set({ isLoading: false });
     }
+  },
+
+  setSelectedDate: async (date: string) => {
+    set({ selectedDate: date });
+    await get().loadFoodItems();
   },
 
   loadGoals: async () => {

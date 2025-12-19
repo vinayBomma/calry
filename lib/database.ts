@@ -106,11 +106,13 @@ async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
 }
 
 // Food Items CRUD operations
-export async function getAllFoodItems(): Promise<FoodItem[]> {
+export async function getAllFoodItems(date?: string | Date): Promise<FoodItem[]> {
   const database = await getDatabase();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const startOfDay = today.getTime();
+
+  // Default to today if no date provided
+  const targetDate = date ? new Date(date) : new Date();
+  targetDate.setHours(0, 0, 0, 0);
+  const startOfDay = targetDate.getTime();
   const endOfDay = startOfDay + 24 * 60 * 60 * 1000;
 
   const result = await database.getAllAsync<FoodItem>(

@@ -1,14 +1,6 @@
 name: React Native CI/CD
 
 on:
-  push:
-    branches: [main, master]
-    paths-ignore:
-      - "**.md"
-      - "LICENSE"
-      - "docs/**"
-  pull_request:
-    branches: [main, master]
   workflow_dispatch:
     inputs:
       buildType:
@@ -16,7 +8,7 @@ on:
         description: "Build type to run"
         options:
           - dev
-          - prod-apk
+          - preview-apk
           - prod-aab
           - all
 

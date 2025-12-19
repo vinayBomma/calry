@@ -24,7 +24,7 @@ import { AlertModal } from "../components/modals";
 type Tab = "ai" | "favourites";
 
 export default function AddMealScreen() {
-  const { addFoodItem, favourites } = useFoodStore();
+  const { addFoodItem, favourites, selectedDate } = useFoodStore();
   const { colors } = useTheme();
   const [activeTab, setActiveTab] = useState<Tab>("ai");
   const [selectedMealType, setSelectedMealType] = useState<MealType>(
@@ -56,6 +56,22 @@ export default function AddMealScreen() {
     setAlertConfig((prev) => ({ ...prev, visible: false }));
   };
 
+  // Helper to get timestamp for the selected date
+  const getTimestampForSelectedDate = () => {
+    const date = new Date(selectedDate);
+    const now = new Date();
+    
+    // If selected date is today, use current time
+    if (date.toDateString() === now.toDateString()) {
+      return now.getTime();
+    }
+    
+    // If different day, default to noon or preserve current time if reasonable?
+    // Let's default to noon for simplicity, or just set hours to current time but on that date
+    date.setHours(now.getHours(), now.getMinutes(), 0, 0);
+    return date.getTime();
+  };
+
   const handleAddMeal = async () => {
     if (!description.trim()) {
       return;
@@ -66,6 +82,7 @@ export default function AddMealScreen() {
     try {
       // Get nutrition info from Gemini
       const nutritionInfo = await getFoodNutritionInfo(description);
+      const timestamp = getTimestampForSelectedDate();
 
       const newFoodItem: FoodItem = {
         id: Date.now().toString(),
@@ -75,11 +92,11 @@ export default function AddMealScreen() {
         protein: nutritionInfo.protein,
         carbs: nutritionInfo.carbs,
         fat: nutritionInfo.fat,
-        timestamp: Date.now(),
+        timestamp: timestamp,
         mealType: selectedMealType,
       };
 
-      // Save to context (now persists to SQLite)
+      // Save to context
       await addFoodItem(newFoodItem);
 
       // Navigate back to home
@@ -94,6 +111,7 @@ export default function AddMealScreen() {
 
   const handleAddFavourite = async (fav: any) => {
     try {
+      const timestamp = getTimestampForSelectedDate();
       const newFoodItem: FoodItem = {
         id: Date.now().toString(),
         name: fav.name,
@@ -102,7 +120,7 @@ export default function AddMealScreen() {
         protein: fav.protein,
         carbs: fav.carbs,
         fat: fav.fat,
-        timestamp: Date.now(),
+        timestamp: timestamp,
         mealType: selectedMealType,
       };
       

@@ -25,7 +25,8 @@ export default {
       "package": "com.vinaybomma.snacktrack"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {
