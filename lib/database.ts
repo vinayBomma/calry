@@ -16,6 +16,13 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return db;
 }
 
+export async function closeDatabase(): Promise<void> {
+  if (db) {
+    await db.closeAsync();
+    db = null;
+  }
+}
+
 async function initDatabase(database: SQLite.SQLiteDatabase): Promise<void> {
   // Create food_items table
   await database.execAsync(`

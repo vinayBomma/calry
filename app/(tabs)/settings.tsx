@@ -27,7 +27,9 @@ import { useTheme } from "../../lib/ThemeContext";
 import { useFoodStore } from "../../store";
 import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
 import { GoalInput } from "../../components/settings";
-import { ProfileModal, FavouritesModal, AlertModal } from "../../components/modals";
+import { ProfileModal, FavouritesModal, AlertModal, ConfirmDialog } from "../../components/modals";
+import { generateMockData } from "../../lib/mock-data";
+import { backupDatabase, restoreDatabase } from "../../lib/backup";
 
 export default function SettingsScreen() {
   const { colors, isDark, toggleTheme } = useTheme();
@@ -43,6 +45,7 @@ export default function SettingsScreen() {
   const [editedGoals, setEditedGoals] = useState(goals);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFavouritesModal, setShowFavouritesModal] = useState(false);
+  const [showImportConfirm, setShowImportConfirm] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
     title: string;
@@ -101,6 +104,7 @@ export default function SettingsScreen() {
       await updateDailyGoals(updatedGoals);
       // Sync with Zustand store
       useFoodStore.getState().updateGoals(updatedGoals);
+      
       setGoals(updatedGoals);
       setEditedGoals(updatedGoals);
       setShowProfileModal(false);
@@ -135,9 +139,46 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleGenerateMockData = async () => {
+    try {
+      await generateMockData();
+      // Refresh the store to show new data
+      await useFoodStore.getState().loadFoodItems();
+      showAlert("Success", "Generated 15 days of test data!", "success");
+    } catch (error) {
+      console.error("Error generating mock data:", error);
+      showAlert("Error", "Failed to generate mock data.", "error");
+    }
+  };
+
   const handleCancelEdit = () => {
     setEditedGoals(goals);
     setIsEditing(false);
+  };
+
+  const handleExport = async () => {
+    try {
+      await backupDatabase();
+      showAlert("Success", "Backup file created successfully!", "success");
+    } catch (error) {
+      showAlert("Error", "Failed to create backup.", "error");
+    }
+  };
+
+  const handleImport = async () => {
+    try {
+      const success = await restoreDatabase();
+      if (success) {
+        showAlert("Success", "Data restored successfully! The app will now refresh.", "success");
+        // Reload all data
+        await loadData();
+        await useFoodStore.getState().loadFoodItems();
+      }
+    } catch (error) {
+      showAlert("Error", "Failed to restore backup. Please ensure the file is valid.", "error");
+    } finally {
+      setShowImportConfirm(false);
+    }
   };
 
   const styles = createStyles(colors);
@@ -312,23 +353,68 @@ export default function SettingsScreen() {
 
         {/* About Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
+          <Text style={styles.sectionTitle}>Data Management</Text>
           <View style={styles.settingsCard}>
-            <View style={styles.settingItem}>
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={handleExport}
+              activeOpacity={0.7}
+            >
               <View style={styles.settingIcon}>
-                <Ionicons
-                  name="information-circle-outline"
-                  size={22}
-                  color={colors.primary}
-                />
+                <Ionicons name="cloud-upload-outline" size={22} color={colors.primary} />
               </View>
               <View style={styles.settingContent}>
-                <Text style={styles.settingTitle}>Version</Text>
+                <Text style={styles.settingTitle}>Export Backup</Text>
+                <Text style={styles.settingSubtitle}>Save your data to a file</Text>
               </View>
-              <Text style={styles.versionText}>1.0.0</Text>
-            </View>
+            </TouchableOpacity>
+            
+            <View style={styles.settingDivider} />
+            
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() => setShowImportConfirm(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingIcon}>
+                <Ionicons name="cloud-download-outline" size={22} color={colors.primary} />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Import Backup</Text>
+                <Text style={styles.settingSubtitle}>Restore data from a file</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
+
+        {/* About Section */}
+
+        {/* Debug Section */}
+        {/* <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Developer Tools</Text>
+          <View style={styles.settingsCard}>
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={handleGenerateMockData}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingIcon}>
+                <Ionicons name="bug-outline" size={22} color={colors.primary} />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Generate Mock Data</Text>
+                <Text style={styles.settingSubtitle}>
+                  Fills history with 15 days of test data
+                </Text>
+              </View>
+              <Ionicons
+                name="flask-outline"
+                size={20}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+        </View> */}
 
         <View style={styles.spacer} />
       </ScrollView>
@@ -353,6 +439,17 @@ export default function SettingsScreen() {
         title={alertConfig.title}
         message={alertConfig.message}
         type={alertConfig.type}
+      />
+
+      <ConfirmDialog
+        visible={showImportConfirm}
+        onClose={() => setShowImportConfirm(false)}
+        onConfirm={handleImport}
+        title="Import Data"
+        message="This will overwrite all your current food logs and settings. Are you sure you want to proceed?"
+        confirmText="Import"
+        cancelText="Cancel"
+        destructive={true}
       />
     </SafeAreaView>
   );
