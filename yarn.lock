@@ -1266,6 +1266,13 @@
   dependencies:
     mitt "^3.0.1"
 
+"@posthog/core@1.8.1":
+  version "1.8.1"
+  resolved "https://registry.yarnpkg.com/@posthog/core/-/core-1.8.1.tgz#590327b0878f2148d9327a962301b0b54ffea796"
+  integrity sha512-jfzBtQIk9auRi/biO+G/gumK5KxqsD5wOr7XpYMROE/I3pazjP4zIziinp21iQuIQJMXrDvwt9Af3njgOGwtew==
+  dependencies:
+    cross-spawn "^7.0.6"
+
 "@radix-ui/primitive@1.1.3":
   version "1.1.3"
   resolved "https://registry.yarnpkg.com/@radix-ui/primitive/-/primitive-1.1.3.tgz#e2dbc13bdc5e4168f4334f75832d7bdd3e2de5ba"
@@ -2368,7 +2375,7 @@ core-js-compat@^3.43.0:
   dependencies:
     browserslist "^4.28.0"
 
-cross-spawn@^7.0.3:
+cross-spawn@^7.0.3, cross-spawn@^7.0.6:
   version "7.0.6"
   resolved "https://registry.yarnpkg.com/cross-spawn/-/cross-spawn-7.0.6.tgz#8a58fe78f00dcd70c370451759dfbfaf03e8ee9f"
   integrity sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==
@@ -2613,6 +2620,11 @@ exec-async@^2.2.0:
   resolved "https://registry.yarnpkg.com/exec-async/-/exec-async-2.2.0.tgz#c7c5ad2eef3478d38390c6dd3acfe8af0efc8301"
   integrity sha512-87OpwcEiMia/DeiKFzaQNBNFeN3XkkpYIh9FyOqq5mS2oKv3CBE67PXoEKcr6nodWdXNogTiQ0jE2NGuoffXPw==
 
+expo-application@~7.0.8:
+  version "7.0.8"
+  resolved "https://registry.yarnpkg.com/expo-application/-/expo-application-7.0.8.tgz#320af0d6c39b331456d3bc833b25763c702d23db"
+  integrity sha512-qFGyxk7VJbrNOQWBbE09XUuGuvkOgFS9QfToaK2FdagM2aQ+x3CvGV2DuVgl/l4ZxPgIf3b/MNh9xHpwSwn74Q==
+
 expo-asset@~12.0.12:
   version "12.0.12"
   resolved "https://registry.yarnpkg.com/expo-asset/-/expo-asset-12.0.12.tgz#15eb7d92cd43cc81c37149e5bbcdc3091875a85b"
@@ -2661,6 +2673,13 @@ expo-dev-menu@7.0.18:
   dependencies:
     expo-dev-menu-interface "2.0.0"
 
+expo-device@~8.0.10:
+  version "8.0.10"
+  resolved "https://registry.yarnpkg.com/expo-device/-/expo-device-8.0.10.tgz#88be854d6de5568392ed814b44dad0e19d1d50f8"
+  integrity sha512-jd5BxjaF7382JkDMaC+P04aXXknB2UhWaVx5WiQKA05ugm/8GH5uaz9P9ckWdMKZGQVVEOC8MHaUADoT26KmFA==
+  dependencies:
+    ua-parser-js "^0.7.33"
+
 expo-document-picker@~14.0.8:
   version "14.0.8"
   resolved "https://registry.yarnpkg.com/expo-document-picker/-/expo-document-picker-14.0.8.tgz#ca1d99cc432c48e69a6390eb035f3301557e3699"
@@ -2695,6 +2714,13 @@ expo-linking@^8.0.8:
   dependencies:
     expo-constants "~18.0.12"
     invariant "^2.2.4"
+
+expo-localization@~17.0.8:
+  version "17.0.8"
+  resolved "https://registry.yarnpkg.com/expo-localization/-/expo-localization-17.0.8.tgz#eb74ae0f9b5b49596322d68d2005662346211100"
+  integrity sha512-UrdwklZBDJ+t+ZszMMiE0SXZ2eJxcquCuQcl6EvGHM9K+e6YqKVRQ+w8qE+iIB3H75v2RJy6MHAaLK+Mqeo04g==
+  dependencies:
+    rtl-detect "^1.0.2"
 
 expo-manifests@~1.0.10:
   version "1.0.10"
@@ -4022,6 +4048,18 @@ postcss@~8.4.32:
     picocolors "^1.1.1"
     source-map-js "^1.2.1"
 
+posthog-react-native-session-replay@^1.2.3:
+  version "1.2.3"
+  resolved "https://registry.yarnpkg.com/posthog-react-native-session-replay/-/posthog-react-native-session-replay-1.2.3.tgz#ef4306a271551a62da95834aeef5d587cf74d6b4"
+  integrity sha512-4ZwdjeCldMveYAqSkTtppI3v4gXrcvoY5INNVy1G2/XJKWPGVrd+hvUwQR9UK/QaGBouE5CpkemADNu326z/aw==
+
+posthog-react-native@^4.16.2:
+  version "4.16.2"
+  resolved "https://registry.yarnpkg.com/posthog-react-native/-/posthog-react-native-4.16.2.tgz#2855085ef20e0e76b302faf244ae8740549b79ae"
+  integrity sha512-HYBsWUmGg1yJgrmLCqjOcIXnaWe38wEVTVhe+x0hYUZfPZzfDchRtNwvPpMMQNU72Tu3fQz1SQkYiGpbUN+BdA==
+  dependencies:
+    "@posthog/core" "1.8.1"
+
 pretty-bytes@^5.6.0:
   version "5.6.0"
   resolved "https://registry.yarnpkg.com/pretty-bytes/-/pretty-bytes-5.6.0.tgz#356256f643804773c82f64723fe78c92c62beaeb"
@@ -4353,6 +4391,11 @@ rimraf@^3.0.2:
   integrity sha512-JZkJMZkAGFFPP2YqXZXPbMlMBgsxzE8ILs4lMIX/2o0L9UBw9O/Y3o6wFw/i9YLapcUJWwqbi3kdxIPdC62TIA==
   dependencies:
     glob "^7.1.3"
+
+rtl-detect@^1.0.2:
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/rtl-detect/-/rtl-detect-1.1.2.tgz#ca7f0330af5c6bb626c15675c642ba85ad6273c6"
+  integrity sha512-PGMBq03+TTG/p/cRB7HCLKJ1MgDIi07+QU1faSjiYRfmY5UsAttV9Hs08jDAHVwcOwmVLcSJkpwyfXszVjWfIQ==
 
 safe-buffer@5.2.1:
   version "5.2.1"
@@ -4759,6 +4802,11 @@ typescript@~5.9.2:
   version "5.9.3"
   resolved "https://registry.yarnpkg.com/typescript/-/typescript-5.9.3.tgz#5b4f59e15310ab17a216f5d6cf53ee476ede670f"
   integrity sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==
+
+ua-parser-js@^0.7.33:
+  version "0.7.41"
+  resolved "https://registry.yarnpkg.com/ua-parser-js/-/ua-parser-js-0.7.41.tgz#9f6dee58c389e8afababa62a4a2dc22edb69a452"
+  integrity sha512-O3oYyCMPYgNNHuO7Jjk3uacJWZF8loBgwrfd/5LE/HyZ3lUIOdniQ7DNXJcIgZbwioZxk0fLfI4EVnetdiX5jg==
 
 undici-types@~7.16.0:
   version "7.16.0"

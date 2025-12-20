@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { View, ActivityIndicator } from "react-native";
 import { Redirect } from "expo-router";
+import { usePostHog } from "posthog-react-native";
 import { isOnboardingCompleted } from "../lib/database";
 import { colors } from "../lib/theme";
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
   const [onboardingDone, setOnboardingDone] = useState(false);
+  const posthog = usePostHog();
 
   useEffect(() => {
     const checkOnboarding = async () => {
@@ -15,6 +17,7 @@ export default function Index() {
         setOnboardingDone(completed);
       } catch (error) {
         console.error("Error checking onboarding:", error);
+        posthog?.captureException(error);
         setOnboardingDone(false);
       } finally {
         setIsLoading(false);

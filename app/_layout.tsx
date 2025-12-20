@@ -1,4 +1,5 @@
-import { Stack } from "expo-router";
+import { Stack, usePathname } from "expo-router";
+import { PostHogProvider, usePostHog } from "posthog-react-native";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { useEffect } from "react";
@@ -11,10 +12,21 @@ import { lightColors } from "../lib/theme";
 function RootLayoutContent() {
   const { colors, isDark } = useTheme();
   const loadData = useFoodStore((state) => state.loadData);
+  const posthog = usePostHog();
+  const pathname = usePathname();
 
   useEffect(() => {
     loadData();
-  }, [loadData]);
+    if (posthog) {
+      posthog.capture("app_opened");
+    }
+  }, [loadData, posthog]);
+
+  useEffect(() => {
+    if (posthog && pathname) {
+      posthog.screen(pathname);
+    }
+  }, [pathname, posthog]);
 
   return (
     <>
@@ -90,10 +102,26 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
-        <RootLayoutContent />
-      </ThemeProvider>
-    </SafeAreaProvider>
+    <PostHogProvider
+      apiKey={process.env.EXPO_PUBLIC_POSTHOG_API_KEY}
+      options={{
+        host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
+        errorTracking: {
+          autocapture: {
+            uncaughtExceptions: true,
+            unhandledRejections: true,
+            console: ["error", "warn"],
+          },
+        },
+        // @ts-ignore - enableSessionRecording is provided by posthog-react-native-session-replay
+        enableSessionRecording: true,
+      }}
+    >
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <RootLayoutContent />
+        </ThemeProvider>
+      </SafeAreaProvider>
+    </PostHogProvider>
   );
 }

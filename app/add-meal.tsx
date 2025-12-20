@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { usePostHog } from "posthog-react-native";
 import { FoodItem } from "../lib/models/food";
 import { getFoodNutritionInfo } from "../lib/gemini";
 import { useFoodStore } from "../store";
@@ -26,6 +27,7 @@ type Tab = "ai" | "favourites";
 export default function AddMealScreen() {
   const { addFoodItem, favourites, selectedDate } = useFoodStore();
   const { colors } = useTheme();
+  const posthog = usePostHog();
   const [activeTab, setActiveTab] = useState<Tab>("ai");
   const [selectedMealType, setSelectedMealType] = useState<MealType>(
     getSuggestedMealType()
@@ -99,10 +101,18 @@ export default function AddMealScreen() {
       // Save to context
       await addFoodItem(newFoodItem);
 
+      // Track event
+      posthog?.capture("meal_added", {
+        meal_type: selectedMealType,
+        calories: newFoodItem.calories,
+        is_ai: true,
+      });
+
       // Navigate back to home
       router.back();
     } catch (error) {
       console.error("Error adding meal:", error);
+      posthog?.captureException(error);
       showAlert("Error", "Failed to analyze meal. Please try again.", "error");
     } finally {
       setIsAnalyzing(false);
@@ -125,9 +135,19 @@ export default function AddMealScreen() {
       };
       
       await addFoodItem(newFoodItem);
+      
+      // Track event
+      posthog?.capture("meal_added", {
+        meal_type: selectedMealType,
+        calories: newFoodItem.calories,
+        is_favourite: true,
+        is_ai: false,
+      });
+      
       router.back();
     } catch (error) {
       console.error("Error adding favourite meal:", error);
+      posthog?.captureException(error);
       showAlert("Error", "Failed to add favourite meal.", "error");
     }
   };
