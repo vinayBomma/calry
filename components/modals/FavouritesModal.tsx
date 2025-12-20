@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../lib/ThemeContext";
-import { useFoodStore } from "../../store";
+import { useFoodStore } from "../../store/foodStore";
 import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
 import { ConfirmDialog } from "./ConfirmDialog";
 

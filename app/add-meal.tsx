@@ -16,11 +16,11 @@ import { router } from "expo-router";
 import { usePostHog } from "posthog-react-native";
 import { FoodItem } from "../lib/models/food";
 import { getFoodNutritionInfo } from "../lib/gemini";
-import { useFoodStore } from "../store";
+import { useFoodStore } from "../store/foodStore";
 import { useTheme } from "../lib/ThemeContext";
 import { spacing, typography, shadows, borderRadius } from "../lib/theme";
-import { MEAL_OPTIONS, getSuggestedMealType, type MealType } from "../lib/hooks";
-import { AlertModal } from "../components/modals";
+import { MEAL_OPTIONS, getSuggestedMealType, type MealType } from "../lib/hooks/useMealConfig";
+import { AlertModal } from "../components/modals/AlertModal";
 
 type Tab = "ai" | "favourites";
 

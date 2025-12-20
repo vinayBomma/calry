@@ -14,7 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { FoodItem } from "../../lib/models/food";
 import { useTheme } from "../../lib/ThemeContext";
 import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
-import { MEAL_OPTIONS, type MealType } from "../../lib/hooks";
+import { MEAL_OPTIONS, type MealType } from "../../lib/hooks/useMealConfig";
 
 interface EditMealModalProps {
   visible: boolean;

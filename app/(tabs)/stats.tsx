@@ -14,7 +14,7 @@ import * as SQLite from "expo-sqlite";
 import { useTheme } from "../../lib/ThemeContext";
 import { useProfileStore } from "../../store/profileStore";
 import { useFoodStore } from "../../store/foodStore";
-import { CalorieChart } from "../../components/stats";
+import { CalorieChart } from "../../components/stats/CalorieChart";
 import { spacing, typography, borderRadius } from "../../lib/theme";
 
 type Period = "weekly" | "monthly";

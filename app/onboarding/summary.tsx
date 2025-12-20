@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useOnboardingStore } from "../../store";
+import { useOnboardingStore } from "../../store/onboardingStore";
 import { useTheme } from "../../lib/ThemeContext";
 import {
   calculateNutritionGoals,
@@ -20,7 +20,7 @@ import {
 } from "../../lib/models/userProfile";
 import { updateUserProfile, updateDailyGoals } from "../../lib/database";
 import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
-import { OnboardingLayout } from "../../components/layout";
+import { OnboardingLayout } from "../../components/layout/OnboardingLayout";
 
 export default function SummaryScreen() {
   const {

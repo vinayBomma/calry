@@ -1,13 +1,13 @@
 import { ScrollView } from "react-native";
 import { router } from "expo-router";
-import { useOnboardingStore } from "../../store";
+import { useOnboardingStore } from "../../store/onboardingStore";
 import {
   ActivityLevel,
   activityLevelLabels,
   activityLevelDescriptions,
 } from "../../lib/models/userProfile";
-import { OnboardingLayout } from "../../components/layout";
-import { OptionCard } from "../../components/ui";
+import { OnboardingLayout } from "../../components/layout/OnboardingLayout";
+import { OptionCard } from "../../components/ui/OptionCard";
 
 const activityOptions: { value: ActivityLevel; icon: string }[] = [
   { value: "sedentary", icon: "desktop-outline" },

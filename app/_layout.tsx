@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider, useTheme } from "../lib/ThemeContext";
-import { useFoodStore } from "../store";
+import { useFoodStore } from "../store/foodStore";
 import { lightColors } from "../lib/theme";
 
 function RootLayoutContent() {

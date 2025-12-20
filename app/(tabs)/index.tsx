@@ -13,9 +13,11 @@ import { router } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "expo-sqlite/kv-store";
 import ConfettiCannon from "react-native-confetti-cannon";
-import { StatsCard, Header, FoodLogItem } from "../../components";
+import { StatsCard } from "../../components/StatsCard";
+import { Header } from "../../components/Header";
+import { FoodLogItem } from "../../components/food/FoodLogItem";
 import { FoodItem } from "../../lib/models/food";
-import { useFoodStore } from "../../store";
+import { useFoodStore } from "../../store/foodStore";
 import { useTheme } from "../../lib/ThemeContext";
 import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
 

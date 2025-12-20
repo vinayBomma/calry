@@ -1,1 +1,0 @@
-export { CalorieChart } from "./CalorieChart";

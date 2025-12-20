@@ -2,11 +2,13 @@ import { useState } from "react";
 import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { FoodItem } from "../../lib/models/food";
-import { useFoodStore } from "../../store";
-import { ActionSheet, ConfirmDialog, EditMealModal } from "../modals";
+import { useFoodStore } from "../../store/foodStore";
+import { ActionSheet } from "../modals/ActionSheet";
+import { ConfirmDialog } from "../modals/ConfirmDialog";
+import { EditMealModal } from "../modals/EditMealModal";
 import { useTheme } from "../../lib/ThemeContext";
 import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
-import { getMealTypeConfig, formatTime, formatMealType } from "../../lib/hooks";
+import { getMealTypeConfig, formatTime, formatMealType } from "../../lib/hooks/useMealConfig";
 
 interface FoodLogItemProps {
   item: FoodItem;

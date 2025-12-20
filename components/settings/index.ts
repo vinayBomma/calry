@@ -1,1 +1,0 @@
-export { GoalInput } from "./GoalInput";

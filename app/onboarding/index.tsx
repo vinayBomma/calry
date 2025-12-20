@@ -1,11 +1,11 @@
 import { View, Text, TouchableOpacity } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useOnboardingStore } from "../../store";
+import { useOnboardingStore } from "../../store/onboardingStore";
 import { useTheme } from "../../lib/ThemeContext";
 import { Gender } from "../../lib/models/userProfile";
 import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
-import { OnboardingLayout } from "../../components/layout";
+import { OnboardingLayout } from "../../components/layout/OnboardingLayout";
 
 const genderOptions: { value: Gender; label: string; icon: string }[] = [
   { value: "male", label: "Male", icon: "male" },

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { StyleSheet, View, Text, TouchableOpacity, Modal, TouchableWithoutFeedback } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Calendar, toDateId } from "@marceloterreiro/flash-calendar";
-import { useFoodStore } from "../store";
+import { useFoodStore } from "../store/foodStore";
 import { useTheme } from "../lib/ThemeContext";
 import { spacing, typography, borderRadius } from "../lib/theme";
 

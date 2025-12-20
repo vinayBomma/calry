@@ -1,7 +1,7 @@
 import { ScrollView, View, Text } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { useOnboardingStore } from "../../store";
+import { useOnboardingStore } from "../../store/onboardingStore";
 import { useTheme } from "../../lib/ThemeContext";
 import {
   EatingType,
@@ -9,8 +9,8 @@ import {
   eatingTypeDescriptions,
 } from "../../lib/models/userProfile";
 import { spacing, typography, borderRadius } from "../../lib/theme";
-import { OnboardingLayout } from "../../components/layout";
-import { OptionCard } from "../../components/ui";
+import { OnboardingLayout } from "../../components/layout/OnboardingLayout";
+import { OptionCard } from "../../components/ui/OptionCard";
 
 const eatingOptions: { value: EatingType; icon: string }[] = [
   { value: "light", icon: "leaf-outline" },

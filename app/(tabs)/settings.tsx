@@ -24,10 +24,13 @@ import {
   calculateNutritionGoals,
 } from "../../lib/models/userProfile";
 import { useTheme } from "../../lib/ThemeContext";
-import { useFoodStore } from "../../store";
+import { useFoodStore } from "../../store/foodStore";
 import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
-import { GoalInput } from "../../components/settings";
-import { ProfileModal, FavouritesModal, AlertModal, ConfirmDialog } from "../../components/modals";
+import { GoalInput } from "../../components/settings/GoalInput";
+import { ProfileModal } from "../../components/modals/ProfileModal";
+import { FavouritesModal } from "../../components/modals/FavouritesModal";
+import { AlertModal } from "../../components/modals/AlertModal";
+import { ConfirmDialog } from "../../components/modals/ConfirmDialog";
 import { backupDatabase, restoreDatabase } from "../../lib/backup";
 
 export default function SettingsScreen() {
