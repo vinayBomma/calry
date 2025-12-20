@@ -1259,6 +1259,13 @@
     "@jridgewell/resolve-uri" "^3.1.0"
     "@jridgewell/sourcemap-codec" "^1.4.14"
 
+"@marceloterreiro/flash-calendar@^1.6.0":
+  version "1.6.0"
+  resolved "https://registry.yarnpkg.com/@marceloterreiro/flash-calendar/-/flash-calendar-1.6.0.tgz#f0d3a54c69432e7c6a02d24367942c71d8dab33b"
+  integrity sha512-sCptZm4Y5O8DOeIs2tXxBKkIlFwnQa4GrLSjSZLY1U+olT8vU0+Fsd/c+GlmOqfrFkx4leQ712l5UX4CLeIu/w==
+  dependencies:
+    mitt "^3.0.1"
+
 "@radix-ui/primitive@1.1.3":
   version "1.1.3"
   resolved "https://registry.yarnpkg.com/@radix-ui/primitive/-/primitive-1.1.3.tgz#e2dbc13bdc5e4168f4334f75832d7bdd3e2de5ba"
@@ -1438,13 +1445,6 @@
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/@radix-ui/react-use-layout-effect/-/react-use-layout-effect-1.1.1.tgz#0c4230a9eed49d4589c967e2d9c0d9d60a23971e"
   integrity sha512-RbJRS4UWQFkzHTTwVymMTUv8EqYhOp8dOOviLj2ugtTiXRaRQS7GLGxZTLL1jWhMeoSCf5zmcZkqTl9IiYfXcQ==
-
-"@react-native-community/datetimepicker@8.4.4":
-  version "8.4.4"
-  resolved "https://registry.yarnpkg.com/@react-native-community/datetimepicker/-/datetimepicker-8.4.4.tgz#2160a808b596e85240cee2415be2eb2bd80d2e92"
-  integrity sha512-bc4ZixEHxZC9/qf5gbdYvIJiLZ5CLmEsC3j+Yhe1D1KC/3QhaIfGDVdUcid0PdlSoGOSEq4VlB93AWyetEyBSQ==
-  dependencies:
-    invariant "^2.2.4"
 
 "@react-native/assets-registry@0.81.5":
   version "0.81.5"
@@ -1640,6 +1640,11 @@
   integrity sha512-1tJHg4KKRJuQ1/EvJxatrMef3NZXEPzwUIUZ3n1yJ2t7Q97siwRtbynRpQG9/69ebbtiZ8W3ScOZF/OmhvM4Rg==
   dependencies:
     nanoid "^3.3.11"
+
+"@shopify/flash-list@^2.2.0":
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/@shopify/flash-list/-/flash-list-2.2.0.tgz#bafd714576182681cba25fb13195dee19f5ca521"
+  integrity sha512-mL61IofcfBNRZ/qazIf+pghGULkcZUQ7EZNldH1JBbIjtDb25ADSiQrt62ZTnRz0H5+bPFEZUmN9+WChHzX8pw==
 
 "@sinclair/typebox@^0.27.8":
   version "0.27.8"
@@ -3730,6 +3735,11 @@ minizlib@^3.1.0:
   integrity sha512-KZxYo1BUkWD2TVFLr0MQoM8vUUigWD3LlD83a/75BqC+4qE0Hb1Vo5v1FgcfaNXvfXzr+5EhQ6ing/CaBijTlw==
   dependencies:
     minipass "^7.1.2"
+
+mitt@^3.0.1:
+  version "3.0.1"
+  resolved "https://registry.yarnpkg.com/mitt/-/mitt-3.0.1.tgz#ea36cf0cc30403601ae074c8f77b7092cdab36d1"
+  integrity sha512-vKivATfr97l2/QBCYAkXYDbrIWPM2IIKEl7YPhjCvKlG3kE2gm+uBo6nEXK3M5/Ffh/FLpKExzOQ3JJoJGFKBw==
 
 mkdirp@^1.0.4:
   version "1.0.4"

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { StyleSheet, View, Text, TouchableOpacity, Platform } from "react-native";
+import { StyleSheet, View, Text, TouchableOpacity, Modal, TouchableWithoutFeedback } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import { Calendar, toDateId } from "@marceloterreiro/flash-calendar";
 import { useFoodStore } from "../store";
 import { useTheme } from "../lib/ThemeContext";
 import { spacing, typography, borderRadius } from "../lib/theme";
@@ -10,20 +10,36 @@ export function Header() {
   const { colors } = useTheme();
   const { selectedDate, setSelectedDate } = useFoodStore();
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(selectedDate.substring(0, 7)); // YYYY-MM
 
   const dateObj = new Date(selectedDate);
   const dayName = dateObj.toLocaleDateString("en-US", { weekday: "short" });
   const dayNumber = dateObj.getDate();
   const monthName = dateObj.toLocaleDateString("en-US", { month: "short" });
 
-  const handleDateChange = (event: any, selectedDate?: Date) => {
+  const handleDateChange = (dateId: string) => {
     setShowDatePicker(false);
-    if (selectedDate) {
-      // Format as YYYY-MM-DD
-      const dateString = selectedDate.toISOString().split("T")[0];
-      setSelectedDate(dateString);
-    }
+    setSelectedDate(dateId);
   };
+
+  const handlePrevMonth = () => {
+    const [year, month] = currentMonth.split("-").map(Number);
+    // currentMonth is 1-indexed (e.g., 2025-12)
+    // Date month is 0-indexed. 
+    // To go to prev month from 2025-12 (month=12), we want 2025-11 (month index 10).
+    const date = new Date(year, month - 2, 1);
+    setCurrentMonth(toDateId(date).substring(0, 7));
+  };
+
+  const handleNextMonth = () => {
+    const [year, month] = currentMonth.split("-").map(Number);
+    // To go to next month from 2025-12 (month=12), we want 2026-01 (month index 12).
+    const date = new Date(year, month, 1);
+    setCurrentMonth(toDateId(date).substring(0, 7));
+  };
+
+  const displayMonthName = new Date(currentMonth + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" });
+
 
   const styles = createStyles(colors);
 
@@ -53,13 +69,52 @@ export function Header() {
 
 
       {showDatePicker && (
-        <DateTimePicker
-          value={dateObj}
-          mode="date"
-          display={Platform.OS === "ios" ? "inline" : "default"}
-          onChange={handleDateChange}
-          maximumDate={new Date()} // Prevent selecting future dates if desired, or remove
-        />
+        <Modal
+          transparent
+          animationType="fade"
+          visible={showDatePicker}
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowDatePicker(false)}>
+            <View style={styles.modalOverlay}>
+              <TouchableWithoutFeedback>
+                <View style={styles.calendarContainer}>
+                  <View style={styles.calendarHeader}>
+                    <View style={styles.calendarNav}>
+                      <TouchableOpacity onPress={handlePrevMonth} style={styles.navButton}>
+                        <Ionicons name="chevron-back" size={20} color={colors.primary} />
+                      </TouchableOpacity>
+                      <Text style={styles.calendarTitle}>{displayMonthName}</Text>
+                      <TouchableOpacity onPress={handleNextMonth} style={styles.navButton}>
+                        <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+                      </TouchableOpacity>
+                    </View>
+                    <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                      <Ionicons name="close" size={24} color={colors.textPrimary} />
+                    </TouchableOpacity>
+                  </View>
+                  <Calendar
+                    calendarMonthId={currentMonth}
+                    onCalendarDayPress={handleDateChange}
+                    calendarActiveDateRanges={[
+                      {
+                        startId: selectedDate,
+                        endId: selectedDate,
+                      },
+                    ]}
+                    theme={{
+                      itemDayContainer: {
+                        activeDayFiller: {
+                          backgroundColor: colors.primary,
+                        },
+                      },
+                    }}
+                  />
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
       )}
     </View>
   );
@@ -132,5 +187,46 @@ const createStyles = (colors: any) =>
       justifyContent: "center",
       borderWidth: 1,
       borderColor: colors.primaryMuted,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+      padding: spacing.lg,
+    },
+    calendarContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      width: "100%",
+      maxWidth: 400,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 5,
+    },
+    calendarHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: spacing.md,
+      paddingHorizontal: spacing.sm,
+    },
+    calendarTitle: {
+      fontSize: typography.base,
+      fontFamily: typography.fontBold,
+      color: colors.textPrimary,
+      marginHorizontal: spacing.sm,
+      minWidth: 140,
+      textAlign: "center",
+    },
+    calendarNav: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    navButton: {
+      padding: spacing.xs,
     },
   });
