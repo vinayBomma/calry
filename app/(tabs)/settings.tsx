@@ -88,7 +88,6 @@ export default function SettingsScreen() {
       setProfile(loadedProfile);
     } catch (error) {
       console.error("Error loading data:", error);
-
     }
   };
 
@@ -107,11 +106,15 @@ export default function SettingsScreen() {
       await updateDailyGoals(updatedGoals);
       // Sync with Zustand store
       useFoodStore.getState().updateGoals(updatedGoals);
-      
+
       setGoals(updatedGoals);
       setEditedGoals(updatedGoals);
       setShowProfileModal(false);
-      showAlert("Success", "Goals recalculated based on your profile!", "success");
+      showAlert(
+        "Success",
+        "Goals recalculated based on your profile!",
+        "success"
+      );
     } catch (error) {
       console.error("Error recalculating goals:", error);
       showAlert("Error", "Failed to recalculate goals.", "error");
@@ -122,8 +125,8 @@ export default function SettingsScreen() {
     setShowProfileModal(false);
     // Confirmation handled in ProfileModal now
     async function performRedo() {
-       await updateUserProfile({ onboardingCompleted: false });
-       router.replace("/onboarding");
+      await updateUserProfile({ onboardingCompleted: false });
+      router.replace("/onboarding");
     }
     performRedo();
   };
@@ -142,8 +145,6 @@ export default function SettingsScreen() {
     }
   };
 
-
-
   const handleCancelEdit = () => {
     setEditedGoals(goals);
     setIsEditing(false);
@@ -151,8 +152,14 @@ export default function SettingsScreen() {
 
   const handleExport = async () => {
     try {
-      await backupDatabase();
-      showAlert("Success", "Backup file created successfully!", "success");
+      const result = await backupDatabase();
+      if (result.shared) {
+        showAlert(
+          "Backup Ready",
+          "Share dialog opened. Please save the backup file to your preferred location.",
+          "info"
+        );
+      }
     } catch (error) {
       showAlert("Error", "Failed to create backup.", "error");
     }
@@ -162,13 +169,21 @@ export default function SettingsScreen() {
     try {
       const success = await restoreDatabase();
       if (success) {
-        showAlert("Success", "Data restored successfully! The app will now refresh.", "success");
-        // Reload all data
+        // Force reload all data from the newly restored database
         await loadData();
-        await useFoodStore.getState().loadFoodItems();
+        await useFoodStore.getState().loadData();
+        showAlert(
+          "Success",
+          "Data restored successfully! Your stats and history have been updated.",
+          "success"
+        );
       }
     } catch (error) {
-      showAlert("Error", "Failed to restore backup. Please ensure the file is valid.", "error");
+      showAlert(
+        "Error",
+        "Failed to restore backup. Please ensure the file is valid.",
+        "error"
+      );
     } finally {
       setShowImportConfirm(false);
     }
@@ -250,7 +265,6 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-
         {/* Profile Section - Opens Modal */}
         {profile && (
           <View style={styles.section}>
@@ -287,8 +301,6 @@ export default function SettingsScreen() {
           </View>
         )}
 
-
-
         {/* Favourites Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Favourites</Text>
@@ -299,12 +311,17 @@ export default function SettingsScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.settingIcon}>
-                <Ionicons name="star-outline" size={22} color={colors.primary} />
+                <Ionicons
+                  name="star-outline"
+                  size={22}
+                  color={colors.primary}
+                />
               </View>
               <View style={styles.settingContent}>
                 <Text style={styles.settingTitle}>Manage Favourites</Text>
                 <Text style={styles.settingSubtitle}>
-                  {favourites.length} saved meal{favourites.length !== 1 ? "s" : ""}
+                  {favourites.length} saved meal
+                  {favourites.length !== 1 ? "s" : ""}
                 </Text>
               </View>
               <Ionicons
@@ -354,37 +371,50 @@ export default function SettingsScreen() {
               activeOpacity={0.7}
             >
               <View style={styles.settingIcon}>
-                <Ionicons name="cloud-upload-outline" size={22} color={colors.primary} />
+                <Ionicons
+                  name="cloud-upload-outline"
+                  size={22}
+                  color={colors.primary}
+                />
               </View>
               <View style={styles.settingContent}>
                 <Text style={styles.settingTitle}>Export Backup</Text>
-                <Text style={styles.settingSubtitle}>Save your data to a file</Text>
+                <Text style={styles.settingSubtitle}>
+                  Save your data to a file
+                </Text>
               </View>
             </TouchableOpacity>
-            
+
             <View style={styles.settingDivider} />
-            
+
             <TouchableOpacity
               style={styles.settingItem}
               onPress={() => setShowImportConfirm(true)}
               activeOpacity={0.7}
             >
               <View style={styles.settingIcon}>
-                <Ionicons name="cloud-download-outline" size={22} color={colors.primary} />
+                <Ionicons
+                  name="cloud-download-outline"
+                  size={22}
+                  color={colors.primary}
+                />
               </View>
               <View style={styles.settingContent}>
                 <Text style={styles.settingTitle}>Import Backup</Text>
-                <Text style={styles.settingSubtitle}>Restore data from a file</Text>
+                <Text style={styles.settingSubtitle}>
+                  Restore data from a file
+                </Text>
               </View>
             </TouchableOpacity>
           </View>
         </View>
 
         {/* About Section */}
-        
 
         <View style={{ alignItems: "center", marginTop: spacing.xl }}>
-          <Text style={styles.versionText}>Version {Constants.expoConfig?.version || "1.2.0"}</Text>
+          <Text style={styles.versionText}>
+            Version {Constants.expoConfig?.version || "1.2.0"}
+          </Text>
         </View>
 
         <View style={styles.spacer} />
@@ -398,7 +428,7 @@ export default function SettingsScreen() {
         onRecalculateGoals={handleRecalculateGoals}
         onRedoOnboarding={handleRedoOnboarding}
       />
-      
+
       <FavouritesModal
         visible={showFavouritesModal}
         onClose={() => setShowFavouritesModal(false)}

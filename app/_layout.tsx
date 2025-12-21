@@ -130,9 +130,13 @@ export default function RootLayout() {
             console: ["error", "warn"],
           },
         },
-        // @ts-ignore - enableSessionRecording is provided by posthog-react-native-session-replay
-        enableSessionRecording: true,
+        // Enable session replay - requires posthog-react-native-session-replay package
+        enableSessionReplay: true,
+        sessionReplayConfig: {
+          maskAllTextInputs: false,
+        },
       }}
+      autocapture={true}
     >
       {content}
     </PostHogProvider>

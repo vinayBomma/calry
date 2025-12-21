@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
+import { useIsFocused } from "@react-navigation/native";
 import * as SQLite from "expo-sqlite";
 import { useTheme } from "../../lib/ThemeContext";
 import { useProfileStore } from "../../store/profileStore";
@@ -44,13 +44,8 @@ export default function StatsScreen() {
   const dbRef = useRef<SQLite.SQLiteDatabase | null>(null);
 
   const isGainingWeight = profile?.weightGoal === "gain";
-
-  useFocusEffect(
-    useCallback(() => {
-      useProfileStore.getState().loadProfile();
-      loadStats();
-    }, [period, profile?.weightGoal, goals.calorieGoal])
-  );
+  const isFocused = useIsFocused();
+  const lastUpdated = useFoodStore((state) => state.lastUpdated);
 
   const getDatabase = async () => {
     if (!dbRef.current) {
@@ -59,7 +54,7 @@ export default function StatsScreen() {
     return dbRef.current;
   };
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       setIsLoading(true);
       const db = await getDatabase();
@@ -101,9 +96,9 @@ export default function StatsScreen() {
       for (let i = 0; i < days; i++) {
         const date = new Date(startDate);
         date.setDate(date.getDate() + i);
-        const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
-          date.getDate()
-        ).padStart(2, "0")}`;
+        const dateKey = `${date.getFullYear()}-${String(
+          date.getMonth() + 1
+        ).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
         const calories = dailyCalories[dateKey] || 0;
 
         let label: string;
@@ -123,7 +118,9 @@ export default function StatsScreen() {
       }
 
       setStats(statsArray);
-      setAvgCalories(daysWithData > 0 ? Math.round(totalCalories / daysWithData) : 0);
+      setAvgCalories(
+        daysWithData > 0 ? Math.round(totalCalories / daysWithData) : 0
+      );
 
       // Calculate streaks
       const allDailyData = await db.getAllAsync<DailyCalorieRow>(
@@ -142,9 +139,9 @@ export default function StatsScreen() {
       let current = 0;
       const checkDate = new Date();
       checkDate.setHours(0, 0, 0, 0);
-      const todayKey = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}-${String(
-        checkDate.getDate()
-      ).padStart(2, "0")}`;
+      const todayKey = `${checkDate.getFullYear()}-${String(
+        checkDate.getMonth() + 1
+      ).padStart(2, "0")}-${String(checkDate.getDate()).padStart(2, "0")}`;
 
       // If today has no records, start checking from yesterday for the streak
       if (!allDailyCalories[todayKey]) {
@@ -152,9 +149,9 @@ export default function StatsScreen() {
       }
 
       while (true) {
-        const dateKey = `${checkDate.getFullYear()}-${String(checkDate.getMonth() + 1).padStart(2, "0")}-${String(
-          checkDate.getDate()
-        ).padStart(2, "0")}`;
+        const dateKey = `${checkDate.getFullYear()}-${String(
+          checkDate.getMonth() + 1
+        ).padStart(2, "0")}-${String(checkDate.getDate()).padStart(2, "0")}`;
         const calories = allDailyCalories[dateKey] || 0;
 
         if (getMetGoal(calories)) {
@@ -172,7 +169,7 @@ export default function StatsScreen() {
 
       let best = 0;
       let tempStreak = 0;
-      
+
       const allDates = Object.keys(allDailyCalories).sort();
       if (allDates.length > 0) {
         const firstDate = new Date(allDates[0]);
@@ -181,10 +178,13 @@ export default function StatsScreen() {
 
         const currentCheck = new Date(firstDate);
         while (currentCheck <= lastDate) {
-          const dateKey = `${currentCheck.getFullYear()}-${String(currentCheck.getMonth() + 1).padStart(2, "0")}-${String(
-            currentCheck.getDate()
-          ).padStart(2, "0")}`;
-          
+          const dateKey = `${currentCheck.getFullYear()}-${String(
+            currentCheck.getMonth() + 1
+          ).padStart(2, "0")}-${String(currentCheck.getDate()).padStart(
+            2,
+            "0"
+          )}`;
+
           if (getMetGoal(allDailyCalories[dateKey] || 0)) {
             tempStreak++;
             best = Math.max(best, tempStreak);
@@ -202,9 +202,20 @@ export default function StatsScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [period, profile?.weightGoal, goals.calorieGoal, isGainingWeight]);
 
-  const maxCalories = Math.max(...stats.map((s) => s.calories), goals.calorieGoal, 1);
+  useEffect(() => {
+    if (isFocused) {
+      useProfileStore.getState().loadProfile();
+      loadStats();
+    }
+  }, [isFocused, lastUpdated, loadStats]);
+
+  const maxCalories = Math.max(
+    ...stats.map((s) => s.calories),
+    goals.calorieGoal,
+    1
+  );
   const styles = createStyles(colors);
 
   const getSubtitle = () => {
@@ -244,42 +255,70 @@ export default function StatsScreen() {
       {/* Period Toggle */}
       <View style={styles.toggleContainer}>
         <TouchableOpacity
-          style={[styles.toggleButton, period === "weekly" && styles.toggleButtonActive]}
+          style={[
+            styles.toggleButton,
+            period === "weekly" && styles.toggleButtonActive,
+          ]}
           onPress={() => setPeriod("weekly")}
         >
-          <Text style={[styles.toggleText, period === "weekly" && styles.toggleTextActive]}>
+          <Text
+            style={[
+              styles.toggleText,
+              period === "weekly" && styles.toggleTextActive,
+            ]}
+          >
             Weekly
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.toggleButton, period === "monthly" && styles.toggleButtonActive]}
+          style={[
+            styles.toggleButton,
+            period === "monthly" && styles.toggleButtonActive,
+          ]}
           onPress={() => setPeriod("monthly")}
         >
-          <Text style={[styles.toggleText, period === "monthly" && styles.toggleTextActive]}>
+          <Text
+            style={[
+              styles.toggleText,
+              period === "monthly" && styles.toggleTextActive,
+            ]}
+          >
             Monthly
           </Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Stats Cards */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <View style={[styles.statIconContainer, { backgroundColor: colors.primaryBg }]}>
+            <View
+              style={[
+                styles.statIconContainer,
+                { backgroundColor: colors.primaryBg },
+              ]}
+            >
               <Ionicons name="flame" size={24} color={colors.primary} />
             </View>
             <Text style={styles.statValue}>{currentStreak}</Text>
             <Text style={styles.statLabel}>Current Streak</Text>
           </View>
           <View style={styles.statCard}>
-            <View style={[styles.statIconContainer, { backgroundColor: "#FEF3C7" }]}>
+            <View
+              style={[styles.statIconContainer, { backgroundColor: "#FEF3C7" }]}
+            >
               <Ionicons name="trophy" size={24} color="#F59E0B" />
             </View>
             <Text style={styles.statValue}>{bestStreak}</Text>
             <Text style={styles.statLabel}>Best Streak</Text>
           </View>
           <View style={styles.statCard}>
-            <View style={[styles.statIconContainer, { backgroundColor: "#EDE9FE" }]}>
+            <View
+              style={[styles.statIconContainer, { backgroundColor: "#EDE9FE" }]}
+            >
               <Ionicons name="analytics" size={24} color="#8B5CF6" />
             </View>
             <Text style={styles.statValue}>{avgCalories}</Text>
@@ -302,7 +341,9 @@ export default function StatsScreen() {
             {period === "weekly" ? "This Week" : "This Month"}
           </Text>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Goals met ({period === "weekly" ? "7d" : "30d"})</Text>
+            <Text style={styles.summaryLabel}>
+              Goals met ({period === "weekly" ? "7d" : "30d"})
+            </Text>
             <Text style={styles.summaryValue}>
               {stats.filter((s) => s.metGoal).length} days
             </Text>
@@ -311,7 +352,11 @@ export default function StatsScreen() {
             <Text style={styles.summaryLabel}>Compliance rate</Text>
             <Text style={styles.summaryValue}>
               {stats.filter((s) => s.calories > 0).length > 0
-                ? Math.round((stats.filter((s) => s.metGoal).length / stats.filter((s) => s.calories > 0).length) * 100)
+                ? Math.round(
+                    (stats.filter((s) => s.metGoal).length /
+                      stats.filter((s) => s.calories > 0).length) *
+                      100
+                  )
                 : 0}
               %
             </Text>

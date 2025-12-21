@@ -31,6 +31,7 @@ interface FoodState {
     carbs: number;
     fat: number;
   };
+  lastUpdated: number;
 
   // Actions
   loadData: () => Promise<void>;
@@ -65,6 +66,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
   isLoading: false,
   selectedDate: new Date().toISOString().split('T')[0], // Default to today YYYY-MM-DD
   totals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+  lastUpdated: Date.now(),
 
   loadData: async () => {
     set({ isLoading: true });
@@ -81,6 +83,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
         favourites,
         totals: calculateTotals(items),
         isLoading: false,
+        lastUpdated: Date.now(),
       });
     } catch (error) {
       console.error("Failed to load data:", error);
@@ -97,6 +100,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
         foodItems: items,
         totals: calculateTotals(items),
         isLoading: false,
+        lastUpdated: Date.now(),
       });
     } catch (error) {
       console.error("Failed to load food items:", error);
@@ -144,6 +148,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
       set({
         foodItems: newItems,
         totals: calculateTotals(newItems),
+        lastUpdated: Date.now(),
       });
     } catch (error) {
       console.error("Failed to add food item:", error);
@@ -154,12 +159,18 @@ export const useFoodStore = create<FoodState>((set, get) => ({
   deleteFoodItem: async (id) => {
     try {
       await dbDeleteFoodItem(id);
-      const { foodItems } = get();
+      const { foodItems, selectedDate } = get();
       const newItems = foodItems.filter((item) => item.id !== id);
+      
+      // Always update lastUpdated to trigger reactive updates in other screens
       set({
         foodItems: newItems,
         totals: calculateTotals(newItems),
+        lastUpdated: Date.now(),
       });
+      
+      // If item wasn't in current view (different date), still trigger lastUpdated
+      // This ensures History/Stats reload even when deleting items from other dates
     } catch (error) {
       console.error("Failed to delete food item:", error);
       throw error;
@@ -171,9 +182,12 @@ export const useFoodStore = create<FoodState>((set, get) => ({
       await dbUpdateFoodItem(item);
       const { foodItems } = get();
       const newItems = foodItems.map((i) => (i.id === item.id ? item : i));
+      
+      // Always update lastUpdated to trigger reactive updates in other screens
       set({
         foodItems: newItems,
         totals: calculateTotals(newItems),
+        lastUpdated: Date.now(),
       });
     } catch (error) {
       console.error("Failed to update food item:", error);
@@ -187,6 +201,7 @@ export const useFoodStore = create<FoodState>((set, get) => ({
       set({
         foodItems: [],
         totals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+        lastUpdated: Date.now(),
       });
     } catch (error) {
       console.error("Failed to clear food items:", error);
@@ -231,11 +246,10 @@ export const useFoodStore = create<FoodState>((set, get) => ({
   },
 
   getDailyStats: () => {
-    const { totals, goals } = get();
-    const today = new Date().toISOString().split("T")[0];
+    const { totals, goals, selectedDate } = get();
 
     return {
-      date: today,
+      date: selectedDate,
       caloriesTotal: totals.calories,
       proteinTotal: Math.round(totals.protein),
       carbsTotal: Math.round(totals.carbs),

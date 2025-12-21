@@ -9,7 +9,7 @@ const DATABASE_NAME = 'snacktrack.db';
  * Utility to backup the current SQLite database to external storage.
  * Uses the modern Expo SDK 54 FileSystem API.
  */
-export const backupDatabase = async () => {
+export const backupDatabase = async (): Promise<{ shared: boolean }> => {
     try {
         // expo-sqlite stores databases in the document directory / SQLite folder
         const sqliteDir = new Directory(Paths.document, 'SQLite');
@@ -21,12 +21,14 @@ export const backupDatabase = async () => {
         }
 
         if (await Sharing.isAvailableAsync()) {
+            // shareAsync shows the share dialog, but doesn't tell us if user actually saved
             await Sharing.shareAsync(dbFile.uri, {
                 UTI: 'public.database', // iOS standard for DB files
                 mimeType: 'application/x-sqlite3', // Android standard
                 dialogTitle: 'Export SnackTrack Backup',
             });
-            return true;
+            // Return that dialog was shown - user may or may not have saved
+            return { shared: true };
         } else {
             throw new Error('Sharing is not available on this platform');
         }
@@ -60,6 +62,10 @@ export const restoreDatabase = async () => {
         }
 
         const targetFile = new File(sqliteDir, DATABASE_NAME);
+
+        if (targetFile.exists) {
+            await targetFile.delete();
+        }
 
         // 3. Close current database to prevent locks
         await closeDatabase();

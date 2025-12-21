@@ -1,41 +1,38 @@
 export default {
-  "expo": {
-    "name": "snacktrack",
-    "slug": "snacktrack",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+  expo: {
+    name: "SnackTrack",
+    slug: "snacktrack",
+    version: "1.0.2",
+    orientation: "portrait",
+    icon: "./assets/icon.png",
+    userInterfaceStyle: "light",
+    newArchEnabled: true,
+    splash: {
+      image: "./assets/icon.png",
+      resizeMode: "contain",
+      backgroundColor: "#ffffff",
     },
-    "ios": {
-      "supportsTablet": true
+    ios: {
+      supportsTablet: true,
     },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#ffffff"
+    android: {
+      adaptiveIcon: {
+        foregroundImage: "./assets/icon.png",
+        backgroundColor: "#ffffff",
       },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.vinaybomma.snacktrack"
+      edgeToEdgeEnabled: true,
+      predictiveBackGestureEnabled: false,
+      package: "com.vinaybomma.snacktrack",
     },
-    "plugins": [
-      "expo-sqlite",
-      "expo-localization"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "30280021-3570-468a-9c2f-6fea51571b9f"
+    plugins: ["expo-sqlite", "expo-localization"],
+    extra: {
+      eas: {
+        projectId: "30280021-3570-468a-9c2f-6fea51571b9f",
       },
-      "geminiApiKey": process.env.EXPO_PUBLIC_GEMINI_API_KEY,
-      "posthogApiKey": process.env.EXPO_PUBLIC_POSTHOG_API_KEY,
-      "posthogHost": process.env.EXPO_PUBLIC_POSTHOG_HOST
+      geminiApiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY,
+      posthogApiKey: process.env.EXPO_PUBLIC_POSTHOG_API_KEY,
+      posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST,
     },
-    "owner": "vinaybomma"
-  }
+    owner: "vinaybomma",
+  },
 };

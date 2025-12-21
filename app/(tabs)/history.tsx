@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -9,12 +9,13 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect } from "@react-navigation/native";
+import { useIsFocused } from "@react-navigation/native";
 import * as SQLite from "expo-sqlite";
 import { FoodItem } from "../../lib/models/food";
 import { FoodLogItem } from "../../components/food/FoodLogItem";
 import { useTheme } from "../../lib/ThemeContext";
 import { spacing, typography, borderRadius } from "../../lib/theme";
+import { useFoodStore } from "../../store/foodStore";
 
 interface DayData {
   date: string;
@@ -29,13 +30,10 @@ export default function HistoryScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadHistory();
-    }, [])
-  );
+  const isFocused = useIsFocused();
+  const lastUpdated = useFoodStore((state) => state.lastUpdated);
 
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
     try {
       setIsLoading(true);
       const db = await SQLite.openDatabaseAsync("snacktrack.db");
@@ -98,7 +96,13 @@ export default function HistoryScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (isFocused) {
+      loadHistory();
+    }
+  }, [isFocused, lastUpdated, loadHistory]);
 
   const toggleExpand = (date: string) => {
     setExpandedDate(expandedDate === date ? null : date);

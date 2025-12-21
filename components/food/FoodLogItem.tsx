@@ -8,7 +8,11 @@ import { ConfirmDialog } from "../modals/ConfirmDialog";
 import { EditMealModal } from "../modals/EditMealModal";
 import { useTheme } from "../../lib/ThemeContext";
 import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
-import { getMealTypeConfig, formatTime, formatMealType } from "../../lib/hooks/useMealConfig";
+import {
+  getMealTypeConfig,
+  formatTime,
+  formatMealType,
+} from "../../lib/hooks/useMealConfig";
 
 interface FoodLogItemProps {
   item: FoodItem;
@@ -32,8 +36,11 @@ export function FoodLogItem({ item }: FoodLogItemProps) {
   const handleDelete = async () => {
     try {
       await deleteFoodItem(item.id);
+      setShowDeleteConfirm(false);
+      setShowActionSheet(false);
     } catch (error) {
       console.error("Error deleting food item:", error);
+      setShowDeleteConfirm(false);
     }
   };
 

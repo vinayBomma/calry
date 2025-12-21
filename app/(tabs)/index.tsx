@@ -21,10 +21,32 @@ import { useFoodStore } from "../../store/foodStore";
 import { useTheme } from "../../lib/ThemeContext";
 import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
 
+const WEEKDAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTH_NAMES_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
 const CONFETTI_STORAGE_KEY = "last_confetti_date";
 
 export default function HomeScreen() {
-  const { foodItems, isLoading, loadData, getDailyStats } = useFoodStore();
+  const {
+    foodItems,
+    isLoading,
+    loadData,
+    getDailyStats,
+    selectedDate,
+  } = useFoodStore();
   const { colors } = useTheme();
   const dailyStats = getDailyStats();
   const [showConfetti, setShowConfetti] = useState(false);
@@ -73,6 +95,19 @@ export default function HomeScreen() {
 
   const styles = createStyles(colors);
 
+  const headerTitle = useMemo(() => {
+    const todayId = new Date().toISOString().split("T")[0];
+    if (selectedDate === todayId) {
+      return "Today's Food Log";
+    }
+
+    const dateObj = new Date(selectedDate);
+    const weekday = WEEKDAY_NAMES[dateObj.getDay()];
+    const month = MONTH_NAMES_SHORT[dateObj.getMonth()];
+    const day = dateObj.getDate();
+    return `Food Log • ${weekday}, ${month} ${day}`;
+  }, [selectedDate]);
+
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
       <Header />
@@ -84,7 +119,7 @@ export default function HomeScreen() {
         <StatsCard stats={dailyStats} />
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Today's Food Log</Text>
+          <Text style={styles.sectionTitle}>{headerTitle}</Text>
           <Text style={styles.sectionCount}>{foodItems.length} items</Text>
         </View>
 
