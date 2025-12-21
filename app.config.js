@@ -32,7 +32,9 @@ export default {
       "eas": {
         "projectId": "30280021-3570-468a-9c2f-6fea51571b9f"
       },
-      "geminiApiKey": process.env.EXPO_PUBLIC_GEMINI_API_KEY
+      "geminiApiKey": process.env.EXPO_PUBLIC_GEMINI_API_KEY,
+      "posthogApiKey": process.env.EXPO_PUBLIC_POSTHOG_API_KEY,
+      "posthogHost": process.env.EXPO_PUBLIC_POSTHOG_HOST
     },
     "owner": "vinaybomma"
   }

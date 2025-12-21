@@ -5,6 +5,7 @@ import { useFonts } from "expo-font";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import Constants from "expo-constants";
 import { ThemeProvider, useTheme } from "../lib/ThemeContext";
 import { useFoodStore } from "../store/foodStore";
 import { lightColors } from "../lib/theme";
@@ -101,11 +102,14 @@ export default function RootLayout() {
     );
   }
 
+  const posthogApiKey = Constants.expoConfig?.extra?.posthogApiKey;
+  const posthogHost = Constants.expoConfig?.extra?.posthogHost;
+
   return (
     <PostHogProvider
-      apiKey={process.env.EXPO_PUBLIC_POSTHOG_API_KEY}
+      apiKey={posthogApiKey}
       options={{
-        host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
+        host: posthogHost,
         errorTracking: {
           autocapture: {
             uncaughtExceptions: true,
