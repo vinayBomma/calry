@@ -105,6 +105,19 @@ export default function RootLayout() {
   const posthogApiKey = Constants.expoConfig?.extra?.posthogApiKey;
   const posthogHost = Constants.expoConfig?.extra?.posthogHost;
 
+  const content = (
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <RootLayoutContent />
+      </ThemeProvider>
+    </SafeAreaProvider>
+  );
+
+  // Only wrap with PostHogProvider if API key is available
+  if (!posthogApiKey) {
+    return content;
+  }
+
   return (
     <PostHogProvider
       apiKey={posthogApiKey}
@@ -121,11 +134,7 @@ export default function RootLayout() {
         enableSessionRecording: true,
       }}
     >
-      <SafeAreaProvider>
-        <ThemeProvider>
-          <RootLayoutContent />
-        </ThemeProvider>
-      </SafeAreaProvider>
+      {content}
     </PostHogProvider>
   );
 }
