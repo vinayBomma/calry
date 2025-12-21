@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -20,6 +20,7 @@ import { usePostHog } from "posthog-react-native";
 import { FoodItem } from "../lib/models/food";
 import { getFoodNutritionInfo } from "../lib/gemini";
 import { useFoodStore } from "../store/foodStore";
+import { usePremiumStore } from "../store/premiumStore";
 import { useTheme } from "../lib/ThemeContext";
 import { spacing, typography, shadows, borderRadius } from "../lib/theme";
 import {
@@ -33,6 +34,13 @@ type Tab = "ai" | "favourites";
 
 export default function AddMealScreen() {
   const { addFoodItem, favourites, selectedDate } = useFoodStore();
+  const {
+    canUseAI,
+    getRemainingAIMeals,
+    incrementAIUsage,
+    isPremium,
+    loadPremiumState,
+  } = usePremiumStore();
   const { colors } = useTheme();
   const posthog = usePostHog();
   const insets = useSafeAreaInsets();
@@ -53,6 +61,13 @@ export default function AddMealScreen() {
     message: "",
     type: "info",
   });
+
+  // Load premium state on mount
+  useEffect(() => {
+    loadPremiumState();
+  }, []);
+
+  const remainingMeals = getRemainingAIMeals();
 
   const showAlert = (
     title: string,
@@ -87,9 +102,23 @@ export default function AddMealScreen() {
       return;
     }
 
+    // Check AI usage limits
+    if (!canUseAI()) {
+      // Show upgrade prompt
+      router.push("/upgrade");
+      return;
+    }
+
     setIsAnalyzing(true);
 
     try {
+      // Increment usage before making the call
+      const allowed = await incrementAIUsage();
+      if (!allowed) {
+        router.push("/upgrade");
+        return;
+      }
+
       // Get nutrition info from Gemini
       const nutritionInfo = await getFoodNutritionInfo(description);
       const timestamp = getTimestampForSelectedDate();
@@ -291,6 +320,35 @@ export default function AddMealScreen() {
                   Tip: Include portions and cooking methods for better estimates
                 </Text>
               </View>
+
+              {/* AI Usage Indicator for free users */}
+              {!isPremium() && (
+                <TouchableOpacity
+                  style={styles.usageContainer}
+                  onPress={() => router.push("/upgrade")}
+                >
+                  <View style={styles.usageInfo}>
+                    <Ionicons
+                      name="sparkles"
+                      size={16}
+                      color={remainingMeals > 0 ? colors.primary : colors.error}
+                    />
+                    <Text
+                      style={[
+                        styles.usageText,
+                        remainingMeals === 0 && { color: colors.error },
+                      ]}
+                    >
+                      {remainingMeals > 0
+                        ? `${remainingMeals} free AI meal${
+                            remainingMeals !== 1 ? "s" : ""
+                          } left today`
+                        : "Daily limit reached"}
+                    </Text>
+                  </View>
+                  <Text style={styles.upgradeLink}>Upgrade →</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             /* Favourites Section */
@@ -474,6 +532,31 @@ const createStyles = (colors: any) =>
       color: colors.textSecondary,
       marginLeft: spacing.sm,
       flex: 1,
+    },
+    usageContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: spacing.md,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      backgroundColor: colors.surfaceSecondary,
+      borderRadius: borderRadius.md,
+    },
+    usageInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+    },
+    usageText: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontMedium,
+      color: colors.textSecondary,
+    },
+    upgradeLink: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontSemibold,
+      color: colors.primary,
     },
     buttonContainer: {
       paddingTop: spacing.lg,

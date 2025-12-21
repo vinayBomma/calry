@@ -8,20 +8,27 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import Constants from "expo-constants";
 import { ThemeProvider, useTheme } from "../lib/ThemeContext";
 import { useFoodStore } from "../store/foodStore";
+import { usePremiumStore } from "../store/premiumStore";
+import { initializeRevenueCat } from "../lib/revenuecat";
 import { lightColors } from "../lib/theme";
 
 function RootLayoutContent() {
   const { colors, isDark } = useTheme();
   const loadData = useFoodStore((state) => state.loadData);
+  const loadPremiumState = usePremiumStore((state) => state.loadPremiumState);
   const posthog = usePostHog();
   const pathname = usePathname();
 
   useEffect(() => {
+    // Initialize app data and services
     loadData();
+    loadPremiumState();
+    initializeRevenueCat();
+    
     if (posthog) {
       posthog.capture("app_opened");
     }
-  }, [loadData, posthog]);
+  }, [loadData, loadPremiumState, posthog]);
 
   useEffect(() => {
     if (posthog && pathname) {
@@ -65,6 +72,14 @@ function RootLayoutContent() {
             title: "Add Meal",
             presentation: "modal",
             headerShown: true,
+          }}
+        />
+        <Stack.Screen
+          name="upgrade"
+          options={{
+            title: "Upgrade",
+            presentation: "modal",
+            headerShown: false,
           }}
         />
         <Stack.Screen

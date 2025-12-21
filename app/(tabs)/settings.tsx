@@ -7,6 +7,11 @@ import {
   TouchableOpacity,
   Alert,
   Switch,
+  Linking,
+  TextInput,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -26,6 +31,11 @@ import {
 } from "../../lib/models/userProfile";
 import { useTheme } from "../../lib/ThemeContext";
 import { useFoodStore } from "../../store/foodStore";
+import {
+  usePremiumStore,
+  canAccessFeature,
+  PREMIUM_FEATURES,
+} from "../../store/premiumStore";
 import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
 import { GoalInput } from "../../components/settings/GoalInput";
 import { ProfileModal } from "../../components/modals/ProfileModal";
@@ -37,6 +47,14 @@ import { backupDatabase, restoreDatabase } from "../../lib/backup";
 export default function SettingsScreen() {
   const { colors, isDark, toggleTheme } = useTheme();
   const { favourites, deleteFavourite } = useFoodStore();
+  const {
+    tier,
+    isPremium,
+    customApiKey,
+    setCustomApiKey,
+    setPremiumTier,
+    loadPremiumState,
+  } = usePremiumStore();
   const [goals, setGoals] = useState<DailyGoals>({
     calorieGoal: 2000,
     proteinGoal: 120,
@@ -49,6 +67,8 @@ export default function SettingsScreen() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFavouritesModal, setShowFavouritesModal] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
     title: string;
@@ -75,6 +95,7 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     loadData();
+    loadPremiumState();
   }, []);
 
   const loadData = async () => {
@@ -150,7 +171,37 @@ export default function SettingsScreen() {
     setIsEditing(false);
   };
 
+  const handleFeedback = async () => {
+    const email = "snacktrack.feedback@gmail.com";
+    const subject = encodeURIComponent("SnackTrack Feedback");
+    const body = encodeURIComponent(
+      `\n\n---\nApp Version: ${
+        Constants.expoConfig?.version || "1.0.0"
+      }\nDevice: ${Constants.platform?.ios ? "iOS" : "Android"}`
+    );
+    const url = `mailto:${email}?subject=${subject}&body=${body}`;
+
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        showAlert(
+          "Error",
+          "No email app found. Please email us at snacktrack.feedback@gmail.com",
+          "error"
+        );
+      }
+    } catch (error) {
+      showAlert("Error", "Could not open email app", "error");
+    }
+  };
+
   const handleExport = async () => {
+    if (!canAccessFeature(PREMIUM_FEATURES.BACKUP)) {
+      router.push("/upgrade");
+      return;
+    }
     try {
       const result = await backupDatabase();
       if (result.shared) {
@@ -166,6 +217,10 @@ export default function SettingsScreen() {
   };
 
   const handleImport = async () => {
+    if (!canAccessFeature(PREMIUM_FEATURES.RESTORE)) {
+      router.push("/upgrade");
+      return;
+    }
     try {
       const success = await restoreDatabase();
       if (success) {
@@ -262,6 +317,99 @@ export default function SettingsScreen() {
                 setEditedGoals({ ...editedGoals, fatGoal: val })
               }
             />
+          </View>
+        </View>
+
+        {/* Premium Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Premium</Text>
+          <View style={styles.settingsCard}>
+            {/* Current Status */}
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() => !isPremium() && router.push("/upgrade")}
+              activeOpacity={isPremium() ? 1 : 0.7}
+            >
+              <View
+                style={[
+                  styles.settingIcon,
+                  isPremium() && { backgroundColor: colors.primaryBg },
+                ]}
+              >
+                <Ionicons
+                  name={isPremium() ? "diamond" : "diamond-outline"}
+                  size={22}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>
+                  {tier === "premium"
+                    ? "Premium"
+                    : tier === "byok"
+                    ? "Developer Mode"
+                    : "Free Plan"}
+                </Text>
+                <Text style={styles.settingSubtitle}>
+                  {isPremium()
+                    ? "Unlimited AI meals & all features"
+                    : "3 AI meals/day • Tap to upgrade"}
+                </Text>
+              </View>
+              {!isPremium() && (
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={colors.textMuted}
+                />
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.settingDivider} />
+
+            {/* BYOK Option */}
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() => {
+                if (customApiKey) {
+                  // Clear the key
+                  Alert.alert(
+                    "Remove API Key",
+                    "Are you sure you want to remove your custom API key?",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Remove",
+                        style: "destructive",
+                        onPress: () => setCustomApiKey(null),
+                      },
+                    ]
+                  );
+                } else {
+                  // Show API key input modal
+                  setApiKeyInput("");
+                  setShowApiKeyModal(true);
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingIcon}>
+                <Ionicons name="key-outline" size={22} color={colors.primary} />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Use Your Own API Key</Text>
+                <Text style={styles.settingSubtitle}>
+                  {customApiKey
+                    ? "API key configured ✓"
+                    : "For developers • Unlimited AI meals"}
+                </Text>
+              </View>
+              <Ionicons
+                name={customApiKey ? "checkmark-circle" : "chevron-forward"}
+                size={20}
+                color={customApiKey ? colors.success : colors.textMuted}
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -380,16 +528,27 @@ export default function SettingsScreen() {
               <View style={styles.settingContent}>
                 <Text style={styles.settingTitle}>Export Backup</Text>
                 <Text style={styles.settingSubtitle}>
-                  Save your data to a file
+                  {isPremium() ? "Save your data to a file" : "Premium feature"}
                 </Text>
               </View>
+              {!isPremium() && (
+                <Ionicons
+                  name="lock-closed"
+                  size={18}
+                  color={colors.textMuted}
+                />
+              )}
             </TouchableOpacity>
 
             <View style={styles.settingDivider} />
 
             <TouchableOpacity
               style={styles.settingItem}
-              onPress={() => setShowImportConfirm(true)}
+              onPress={() =>
+                isPremium()
+                  ? setShowImportConfirm(true)
+                  : router.push("/upgrade")
+              }
               activeOpacity={0.7}
             >
               <View style={styles.settingIcon}>
@@ -402,9 +561,139 @@ export default function SettingsScreen() {
               <View style={styles.settingContent}>
                 <Text style={styles.settingTitle}>Import Backup</Text>
                 <Text style={styles.settingSubtitle}>
-                  Restore data from a file
+                  {isPremium() ? "Restore data from a file" : "Premium feature"}
                 </Text>
               </View>
+              {!isPremium() && (
+                <Ionicons
+                  name="lock-closed"
+                  size={18}
+                  color={colors.textMuted}
+                />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Support Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Support</Text>
+          <View style={styles.settingsCard}>
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={handleFeedback}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingIcon}>
+                <Ionicons
+                  name="mail-outline"
+                  size={22}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Send Feedback</Text>
+                <Text style={styles.settingSubtitle}>
+                  Report bugs or request features
+                </Text>
+              </View>
+              <Ionicons
+                name="open-outline"
+                size={18}
+                color={colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Developer Options - Testing Only */}
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🛠 Developer Options</Text>
+          <View style={styles.settingsCard}>
+            <TouchableOpacity
+              style={[
+                styles.settingItem,
+                tier === "free" && { backgroundColor: colors.primaryBg },
+              ]}
+              onPress={() => setPremiumTier("free", undefined, undefined)}
+            >
+              <View style={styles.settingIcon}>
+                <Ionicons
+                  name="person-outline"
+                  size={22}
+                  color={colors.textSecondary}
+                />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Free Plan</Text>
+                <Text style={styles.settingSubtitle}>
+                  3 AI meals/day, limited features
+                </Text>
+              </View>
+              {tier === "free" && (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={22}
+                  color={colors.primary}
+                />
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.settingDivider} />
+
+            <TouchableOpacity
+              style={[
+                styles.settingItem,
+                tier === "premium" && { backgroundColor: colors.primaryBg },
+              ]}
+              onPress={() => setPremiumTier("premium", "one_time", undefined)}
+            >
+              <View style={styles.settingIcon}>
+                <Ionicons name="diamond" size={22} color={colors.primary} />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Premium (Lifetime)</Text>
+                <Text style={styles.settingSubtitle}>
+                  Unlimited AI, all features
+                </Text>
+              </View>
+              {tier === "premium" && (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={22}
+                  color={colors.primary}
+                />
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.settingDivider} />
+
+            <TouchableOpacity
+              style={[
+                styles.settingItem,
+                tier === "byok" && { backgroundColor: colors.primaryBg },
+              ]}
+              onPress={() => {
+                setCustomApiKey("test_api_key_for_dev");
+              }}
+            >
+              <View style={styles.settingIcon}>
+                <Ionicons name="key" size={22} color={colors.warning} />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>BYOK Mode</Text>
+                <Text style={styles.settingSubtitle}>
+                  Developer API key mode
+                </Text>
+              </View>
+              {tier === "byok" && (
+                <Ionicons
+                  name="checkmark-circle"
+                  size={22}
+                  color={colors.primary}
+                />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -452,6 +741,65 @@ export default function SettingsScreen() {
         cancelText="Cancel"
         destructive={true}
       />
+
+      {/* API Key Input Modal */}
+      <Modal
+        visible={showApiKeyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowApiKeyModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.apiKeyModalContent}>
+            <Text style={styles.apiKeyModalTitle}>Enter Gemini API Key</Text>
+            <Text style={styles.apiKeyModalSubtitle}>
+              Get your API key from Google AI Studio. This unlocks unlimited AI
+              meals.
+            </Text>
+            <TextInput
+              style={styles.apiKeyInput}
+              placeholder="Paste your API key here"
+              placeholderTextColor={colors.textMuted}
+              value={apiKeyInput}
+              onChangeText={setApiKeyInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+            />
+            <View style={styles.apiKeyModalButtons}>
+              <TouchableOpacity
+                style={styles.apiKeyModalCancelButton}
+                onPress={() => setShowApiKeyModal(false)}
+              >
+                <Text style={styles.apiKeyModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.apiKeyModalSaveButton,
+                  !apiKeyInput.trim() && { opacity: 0.5 },
+                ]}
+                onPress={() => {
+                  if (apiKeyInput.trim()) {
+                    setCustomApiKey(apiKeyInput.trim());
+                    setShowApiKeyModal(false);
+                    showAlert(
+                      "Success",
+                      "API key saved! You now have unlimited AI meals.",
+                      "success"
+                    );
+                  }
+                }}
+                disabled={!apiKeyInput.trim()}
+              >
+                <Text style={styles.apiKeyModalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -574,5 +922,69 @@ const createStyles = (colors: any) =>
     },
     spacer: {
       height: 40,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: spacing.lg,
+    },
+    apiKeyModalContent: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.xl,
+      padding: spacing.xl,
+      width: "100%",
+      maxWidth: 400,
+      ...shadows.lg,
+    },
+    apiKeyModalTitle: {
+      fontSize: typography.xl,
+      fontFamily: typography.fontBold,
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+    },
+    apiKeyModalSubtitle: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontRegular,
+      color: colors.textSecondary,
+      marginBottom: spacing.lg,
+    },
+    apiKeyInput: {
+      backgroundColor: colors.surfaceSecondary,
+      borderRadius: borderRadius.md,
+      padding: spacing.md,
+      fontSize: typography.base,
+      fontFamily: typography.fontRegular,
+      color: colors.textPrimary,
+      marginBottom: spacing.lg,
+    },
+    apiKeyModalButtons: {
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    apiKeyModalCancelButton: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      alignItems: "center",
+      borderRadius: borderRadius.md,
+      backgroundColor: colors.surfaceSecondary,
+    },
+    apiKeyModalCancelText: {
+      fontSize: typography.base,
+      fontFamily: typography.fontMedium,
+      color: colors.textSecondary,
+    },
+    apiKeyModalSaveButton: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      alignItems: "center",
+      borderRadius: borderRadius.md,
+      backgroundColor: colors.primary,
+    },
+    apiKeyModalSaveText: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.textInverse,
     },
   });
