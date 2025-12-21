@@ -9,12 +9,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { FoodItem } from "../../lib/models/food";
 import { useTheme } from "../../lib/ThemeContext";
 import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
 import { MEAL_OPTIONS, type MealType } from "../../lib/hooks/useMealConfig";
+import { getFoodNutritionInfo } from "../../lib/gemini";
 
 interface EditMealModalProps {
   visible: boolean;
@@ -31,15 +33,18 @@ export function EditMealModal({
 }: EditMealModalProps) {
   const { colors } = useTheme();
   const [name, setName] = useState(item.name);
+  const [description, setDescription] = useState(item.description || "");
   const [calories, setCalories] = useState(item.calories.toString());
   const [protein, setProtein] = useState(item.protein.toString());
   const [carbs, setCarbs] = useState(item.carbs.toString());
   const [fat, setFat] = useState(item.fat.toString());
   const [mealType, setMealType] = useState<MealType>(item.mealType);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
     if (visible) {
       setName(item.name);
+      setDescription(item.description || "");
       setCalories(item.calories.toString());
       setProtein(item.protein.toString());
       setCarbs(item.carbs.toString());
@@ -48,10 +53,31 @@ export function EditMealModal({
     }
   }, [visible, item]);
 
+  const handleAnalyze = async () => {
+    if (!description.trim()) return;
+    
+    setIsAnalyzing(true);
+    try {
+      const nutritionInfo = await getFoodNutritionInfo(description);
+      if (nutritionInfo.success) {
+        setName(nutritionInfo.name);
+        setCalories(nutritionInfo.calories.toString());
+        setProtein(nutritionInfo.protein.toString());
+        setCarbs(nutritionInfo.carbs.toString());
+        setFat(nutritionInfo.fat.toString());
+      }
+    } catch (error) {
+      console.error("Analysis failed:", error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const handleSave = async () => {
     const updatedItem: FoodItem = {
       ...item,
       name,
+      description,
       calories: Number(calories) || 0,
       protein: Number(protein) || 0,
       carbs: Number(carbs) || 0,
@@ -63,6 +89,8 @@ export function EditMealModal({
   };
 
   const styles = createStyles(colors);
+
+  const isDescriptionChanged = description !== (item.description || "");
 
   return (
     <Modal
@@ -84,6 +112,38 @@ export function EditMealModal({
           </View>
 
           <ScrollView style={styles.form} showsVerticalScrollIndicator={false}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Meal Description (AI Analysis)</Text>
+              <View style={styles.descriptionContainer}>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  value={description}
+                  onChangeText={setDescription}
+                  placeholder="Describe your meal..."
+                  placeholderTextColor={colors.textMuted}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+                {(isDescriptionChanged || !calories || calories === "0") && (
+                  <TouchableOpacity 
+                    style={[styles.aiButton, isAnalyzing && styles.aiButtonDisabled]} 
+                    onPress={handleAnalyze}
+                    disabled={isAnalyzing || !description.trim()}
+                  >
+                    {isAnalyzing ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <>
+                        <Ionicons name="sparkles" size={16} color={colors.primary} />
+                        <Text style={styles.aiButtonText}>Analyze</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Meal Name</Text>
               <TextInput
@@ -235,6 +295,36 @@ const createStyles = (colors: any) =>
       fontFamily: typography.fontMedium,
       color: colors.textSecondary,
       marginBottom: spacing.xs,
+    },
+    descriptionContainer: {
+      position: "relative",
+    },
+    textArea: {
+      minHeight: 100,
+      paddingBottom: 40,
+    },
+    aiButton: {
+      position: "absolute",
+      right: spacing.sm,
+      bottom: spacing.sm,
+      flexDirection: "row",
+      alignItems: "center",
+      backgroundColor: colors.primaryBg,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.full,
+      gap: 4,
+      borderWidth: 1,
+      borderColor: colors.primaryMuted,
+    },
+    aiButtonDisabled: {
+      opacity: 0.5,
+      borderColor: colors.border,
+    },
+    aiButtonText: {
+      fontSize: typography.xs,
+      fontFamily: typography.fontBold,
+      color: colors.primary,
     },
     input: {
       backgroundColor: colors.surface,

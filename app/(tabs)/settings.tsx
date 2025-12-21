@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import Constants from "expo-constants";
 import {
   getDailyGoals,
   updateDailyGoals,
@@ -381,6 +382,10 @@ export default function SettingsScreen() {
 
         {/* About Section */}
         
+
+        <View style={{ alignItems: "center", marginTop: spacing.xl }}>
+          <Text style={styles.versionText}>Version {Constants.expoConfig?.version || "1.2.0"}</Text>
+        </View>
 
         <View style={styles.spacer} />
       </ScrollView>

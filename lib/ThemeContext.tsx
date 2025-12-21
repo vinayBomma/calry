@@ -5,6 +5,7 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import { Appearance } from "react-native";
 import AsyncStorage from "expo-sqlite/kv-store";
 import { lightColors, darkColors } from "./theme";
 
@@ -22,7 +23,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 const THEME_STORAGE_KEY = "@snacktrack_theme";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(Appearance.getColorScheme() === "dark");
+  const [hasSavedTheme, setHasSavedTheme] = useState(false);
 
   useEffect(() => {
     loadTheme();
@@ -33,6 +35,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       const savedTheme = await AsyncStorage.getItem(THEME_STORAGE_KEY);
       if (savedTheme) {
         setIsDark(savedTheme === "dark");
+        setHasSavedTheme(true);
+      } else {
+        setHasSavedTheme(false);
       }
     } catch (error) {
       console.error("Error loading theme:", error);
@@ -50,13 +55,25 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const toggleTheme = () => {
     const newMode = isDark ? "light" : "dark";
     setIsDark(!isDark);
+    setHasSavedTheme(true);
     saveTheme(newMode);
   };
 
   const setTheme = (mode: ThemeMode) => {
     setIsDark(mode === "dark");
+    setHasSavedTheme(true);
     saveTheme(mode);
   };
+
+  useEffect(() => {
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+      if (!hasSavedTheme) {
+        setIsDark(colorScheme === "dark");
+      }
+    });
+
+    return () => subscription.remove();
+  }, [hasSavedTheme]);
 
   const colors = isDark ? darkColors : lightColors;
 

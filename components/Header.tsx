@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { StyleSheet, View, Text, TouchableOpacity, Modal, TouchableWithoutFeedback } from "react-native";
+import {
+  StyleSheet,
+  View,
+  Text,
+  TouchableOpacity,
+  Modal,
+  TouchableWithoutFeedback,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Calendar, toDateId } from "@marceloterreiro/flash-calendar";
 import { useFoodStore } from "../store/foodStore";
@@ -10,12 +17,30 @@ export function Header() {
   const { colors } = useTheme();
   const { selectedDate, setSelectedDate } = useFoodStore();
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(selectedDate.substring(0, 7)); // YYYY-MM
+  const [currentMonth, setCurrentMonth] = useState(
+    selectedDate.substring(0, 10)
+  ); // YYYY-MM-DD
+
+  const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const MONTH_NAMES_SHORT = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
 
   const dateObj = new Date(selectedDate);
-  const dayName = dateObj.toLocaleDateString("en-US", { weekday: "short" });
+  const dayName = DAY_NAMES[dateObj.getDay()];
   const dayNumber = dateObj.getDate();
-  const monthName = dateObj.toLocaleDateString("en-US", { month: "short" });
+  const monthName = MONTH_NAMES_SHORT[dateObj.getMonth()];
 
   const handleDateChange = (dateId: string) => {
     setShowDatePicker(false);
@@ -25,21 +50,37 @@ export function Header() {
   const handlePrevMonth = () => {
     const [year, month] = currentMonth.split("-").map(Number);
     // currentMonth is 1-indexed (e.g., 2025-12)
-    // Date month is 0-indexed. 
+    // Date month is 0-indexed.
     // To go to prev month from 2025-12 (month=12), we want 2025-11 (month index 10).
     const date = new Date(year, month - 2, 1);
-    setCurrentMonth(toDateId(date).substring(0, 7));
+    setCurrentMonth(toDateId(date).substring(0, 10));
   };
 
   const handleNextMonth = () => {
     const [year, month] = currentMonth.split("-").map(Number);
     // To go to next month from 2025-12 (month=12), we want 2026-01 (month index 12).
     const date = new Date(year, month, 1);
-    setCurrentMonth(toDateId(date).substring(0, 7));
+    setCurrentMonth(toDateId(date).substring(0, 10));
   };
 
-  const displayMonthName = new Date(currentMonth + "-01").toLocaleDateString("en-US", { month: "long", year: "numeric" });
-
+  const monthNames = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  const currentMonthParts = currentMonth.split("-");
+  const displayMonthName = `${monthNames[parseInt(currentMonthParts[1]) - 1]} ${
+    currentMonthParts[0]
+  }`;
 
   const styles = createStyles(colors);
 
@@ -67,7 +108,6 @@ export function Header() {
         <Ionicons name="calendar-outline" size={24} color={colors.primary} />
       </TouchableOpacity>
 
-
       {showDatePicker && (
         <Modal
           transparent
@@ -81,35 +121,103 @@ export function Header() {
                 <View style={styles.calendarContainer}>
                   <View style={styles.calendarHeader}>
                     <View style={styles.calendarNav}>
-                      <TouchableOpacity onPress={handlePrevMonth} style={styles.navButton}>
-                        <Ionicons name="chevron-back" size={20} color={colors.primary} />
+                      <TouchableOpacity
+                        onPress={handlePrevMonth}
+                        style={styles.navButton}
+                      >
+                        <Ionicons
+                          name="chevron-back"
+                          size={20}
+                          color={colors.primary}
+                        />
                       </TouchableOpacity>
-                      <Text style={styles.calendarTitle}>{displayMonthName}</Text>
-                      <TouchableOpacity onPress={handleNextMonth} style={styles.navButton}>
-                        <Ionicons name="chevron-forward" size={20} color={colors.primary} />
+                      <Text style={styles.calendarTitle}>
+                        {displayMonthName}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={handleNextMonth}
+                        style={styles.navButton}
+                      >
+                        <Ionicons
+                          name="chevron-forward"
+                          size={20}
+                          color={colors.primary}
+                        />
                       </TouchableOpacity>
                     </View>
                     <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                      <Ionicons name="close" size={24} color={colors.textPrimary} />
+                      <Ionicons
+                        name="close"
+                        size={24}
+                        color={colors.textPrimary}
+                      />
                     </TouchableOpacity>
                   </View>
-                  <Calendar
-                    calendarMonthId={currentMonth}
-                    onCalendarDayPress={handleDateChange}
-                    calendarActiveDateRanges={[
-                      {
-                        startId: selectedDate,
-                        endId: selectedDate,
-                      },
+                  <View
+                    style={[
+                      styles.calendarWrapper,
+                      { backgroundColor: colors.surface },
                     ]}
-                    theme={{
-                      itemDayContainer: {
-                        activeDayFiller: {
-                          backgroundColor: colors.primary,
+                  >
+                    <Calendar
+                      calendarMonthId={currentMonth}
+                      onCalendarDayPress={handleDateChange}
+                      calendarActiveDateRanges={[
+                        {
+                          startId: selectedDate,
+                          endId: selectedDate,
                         },
-                      },
-                    }}
-                  />
+                      ]}
+                      theme={{
+                        rowMonth: {
+                          content: {
+                            color: colors.textPrimary,
+                            fontFamily: typography.fontSemibold,
+                            fontSize: typography.base,
+                          },
+                        },
+                        rowWeek: {
+                          container: {
+                            backgroundColor: colors.surface,
+                          },
+                        },
+                        itemWeekName: {
+                          content: {
+                            color: colors.textSecondary,
+                            fontFamily: typography.fontMedium,
+                            fontSize: typography.sm,
+                          },
+                        },
+                        itemDayContainer: {
+                          activeDayFiller: {
+                            backgroundColor: colors.primary,
+                          },
+                        },
+                        itemDay: {
+                          base: () => ({
+                            container: {
+                              backgroundColor: "transparent",
+                            },
+                            content: {
+                              color: colors.textPrimary,
+                              fontFamily: typography.fontMedium,
+                              fontSize: typography.base,
+                            },
+                          }),
+                          active: () => ({
+                            container: {
+                              backgroundColor: colors.primary,
+                              borderRadius: 8,
+                            },
+                            content: {
+                              color: colors.textInverse,
+                              fontFamily: typography.fontSemibold,
+                            },
+                          }),
+                        },
+                      }}
+                    />
+                  </View>
                 </View>
               </TouchableWithoutFeedback>
             </View>
@@ -228,5 +336,10 @@ const createStyles = (colors: any) =>
     },
     navButton: {
       padding: spacing.xs,
+    },
+    calendarWrapper: {
+      borderRadius: borderRadius.md,
+      padding: spacing.sm,
+      marginTop: spacing.sm,
     },
   });

@@ -10,7 +10,10 @@ import {
   Platform,
   ActivityIndicator,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { usePostHog } from "posthog-react-native";
@@ -19,7 +22,11 @@ import { getFoodNutritionInfo } from "../lib/gemini";
 import { useFoodStore } from "../store/foodStore";
 import { useTheme } from "../lib/ThemeContext";
 import { spacing, typography, shadows, borderRadius } from "../lib/theme";
-import { MEAL_OPTIONS, getSuggestedMealType, type MealType } from "../lib/hooks/useMealConfig";
+import {
+  MEAL_OPTIONS,
+  getSuggestedMealType,
+  type MealType,
+} from "../lib/hooks/useMealConfig";
 import { AlertModal } from "../components/modals/AlertModal";
 
 type Tab = "ai" | "favourites";
@@ -28,6 +35,7 @@ export default function AddMealScreen() {
   const { addFoodItem, favourites, selectedDate } = useFoodStore();
   const { colors } = useTheme();
   const posthog = usePostHog();
+  const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState<Tab>("ai");
   const [selectedMealType, setSelectedMealType] = useState<MealType>(
     getSuggestedMealType()
@@ -62,12 +70,12 @@ export default function AddMealScreen() {
   const getTimestampForSelectedDate = () => {
     const date = new Date(selectedDate);
     const now = new Date();
-    
+
     // If selected date is today, use current time
     if (date.toDateString() === now.toDateString()) {
       return now.getTime();
     }
-    
+
     // If different day, default to noon or preserve current time if reasonable?
     // Let's default to noon for simplicity, or just set hours to current time but on that date
     date.setHours(now.getHours(), now.getMinutes(), 0, 0);
@@ -133,9 +141,9 @@ export default function AddMealScreen() {
         timestamp: timestamp,
         mealType: selectedMealType,
       };
-      
+
       await addFoodItem(newFoodItem);
-      
+
       // Track event
       posthog?.capture("meal_added", {
         meal_type: selectedMealType,
@@ -143,7 +151,7 @@ export default function AddMealScreen() {
         is_favourite: true,
         is_ai: false,
       });
-      
+
       router.back();
     } catch (error) {
       console.error("Error adding favourite meal:", error);
@@ -193,8 +201,8 @@ export default function AddMealScreen() {
                     name={option.icon}
                     size={28}
                     color={
-                      selectedMealType === option.type 
-                        ? colors.primary 
+                      selectedMealType === option.type
+                        ? colors.primary
                         : colors.textSecondary
                     }
                   />
@@ -214,17 +222,34 @@ export default function AddMealScreen() {
 
           {/* Tabs */}
           <View style={styles.tabContainer}>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[styles.tab, activeTab === "ai" && styles.tabActive]}
               onPress={() => setActiveTab("ai")}
             >
-              <Text style={[styles.tabText, activeTab === "ai" && styles.tabTextActive]}>AI Input</Text>
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "ai" && styles.tabTextActive,
+                ]}
+              >
+                AI Input
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.tab, activeTab === "favourites" && styles.tabActive]}
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                activeTab === "favourites" && styles.tabActive,
+              ]}
               onPress={() => setActiveTab("favourites")}
             >
-              <Text style={[styles.tabText, activeTab === "favourites" && styles.tabTextActive]}>Favourites</Text>
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "favourites" && styles.tabTextActive,
+                ]}
+              >
+                Favourites
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -248,12 +273,14 @@ export default function AddMealScreen() {
                   onChangeText={setDescription}
                   maxLength={200}
                 />
-                <Text style={{ 
-                  textAlign: 'right', 
-                  color: description.length >= 200 ? 'red' : colors.textMuted,
-                  fontSize: 12,
-                  marginTop: 4
-                }}>
+                <Text
+                  style={{
+                    textAlign: "right",
+                    color: description.length >= 200 ? "red" : colors.textMuted,
+                    fontSize: 12,
+                    marginTop: 4,
+                  }}
+                >
                   {description.length}/200
                 </Text>
               </View>
@@ -271,9 +298,15 @@ export default function AddMealScreen() {
               <Text style={styles.sectionTitle}>Your Favourites</Text>
               {favourites.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <Ionicons name="star-outline" size={48} color={colors.textMuted} />
+                  <Ionicons
+                    name="star-outline"
+                    size={48}
+                    color={colors.textMuted}
+                  />
                   <Text style={styles.emptyStateText}>No favourites yet</Text>
-                  <Text style={styles.emptyStateSubtext}>Save meals from your history or settings to see them here.</Text>
+                  <Text style={styles.emptyStateSubtext}>
+                    Save meals from your history or settings to see them here.
+                  </Text>
                 </View>
               ) : (
                 <View style={styles.favouritesList}>
@@ -285,12 +318,19 @@ export default function AddMealScreen() {
                     >
                       <View style={styles.favouriteContent}>
                         <Text style={styles.favouriteName}>{fav.name}</Text>
-                        <Text style={styles.favouriteCalories}>{fav.calories} kcal</Text>
+                        <Text style={styles.favouriteCalories}>
+                          {fav.calories} kcal
+                        </Text>
                         <Text style={styles.favouriteMacros}>
-                          P: {Math.round(fav.protein)}g • C: {Math.round(fav.carbs)}g • F: {Math.round(fav.fat)}g
+                          P: {Math.round(fav.protein)}g • C:{" "}
+                          {Math.round(fav.carbs)}g • F: {Math.round(fav.fat)}g
                         </Text>
                       </View>
-                      <Ionicons name="add-circle" size={28} color={colors.primary} />
+                      <Ionicons
+                        name="add-circle"
+                        size={28}
+                        color={colors.primary}
+                      />
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -301,11 +341,17 @@ export default function AddMealScreen() {
 
         {/* Add Button - Only for AI Tab */}
         {activeTab === "ai" && (
-          <View style={styles.buttonContainer}>
+          <View
+            style={[
+              styles.buttonContainer,
+              { paddingBottom: spacing.lg + insets.bottom },
+            ]}
+          >
             <TouchableOpacity
               style={[
                 styles.addButton,
-                (!description.trim() || isAnalyzing) && styles.addButtonDisabled,
+                (!description.trim() || isAnalyzing) &&
+                  styles.addButtonDisabled,
               ]}
               onPress={handleAddMeal}
               disabled={!description.trim() || isAnalyzing}
@@ -430,7 +476,9 @@ const createStyles = (colors: any) =>
       flex: 1,
     },
     buttonContainer: {
-      padding: spacing.lg,
+      paddingTop: spacing.lg,
+      paddingLeft: spacing.lg,
+      paddingRight: spacing.lg,
       backgroundColor: colors.background,
     },
     addButton: {
