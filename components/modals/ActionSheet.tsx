@@ -16,6 +16,7 @@ interface ActionOption {
   icon: keyof typeof Ionicons.glyphMap;
   onPress: () => void;
   destructive?: boolean;
+  disabled?: boolean;
 }
 
 interface ActionSheetProps {
@@ -56,29 +57,41 @@ export function ActionSheet({
                 style={[
                   styles.option,
                   index < options.length - 1 && styles.optionBorder,
+                  option.disabled && styles.optionDisabled,
                 ]}
                 onPress={() => {
-                  option.onPress();
-                  onClose();
+                  if (!option.disabled) {
+                    option.onPress();
+                    onClose();
+                  }
                 }}
-                activeOpacity={0.7}
+                activeOpacity={option.disabled ? 1 : 0.7}
+                disabled={option.disabled}
               >
                 <View
                   style={[
                     styles.iconContainer,
                     option.destructive && styles.iconContainerDestructive,
+                    option.disabled && styles.iconContainerDisabled,
                   ]}
                 >
                   <Ionicons
                     name={option.icon}
                     size={20}
-                    color={option.destructive ? colors.error : colors.primary}
+                    color={
+                      option.disabled
+                        ? colors.textMuted
+                        : option.destructive
+                        ? colors.error
+                        : colors.primary
+                    }
                   />
                 </View>
                 <Text
                   style={[
                     styles.optionLabel,
                     option.destructive && styles.optionLabelDestructive,
+                    option.disabled && styles.optionLabelDisabled,
                   ]}
                 >
                   {option.label}
@@ -86,7 +99,7 @@ export function ActionSheet({
                 <Ionicons
                   name="chevron-forward"
                   size={18}
-                  color={colors.textMuted}
+                  color={option.disabled ? colors.divider : colors.textMuted}
                 />
               </TouchableOpacity>
             ))}
@@ -140,6 +153,9 @@ const createStyles = (colors: any) =>
       borderBottomWidth: 1,
       borderBottomColor: colors.divider,
     },
+    optionDisabled: {
+      opacity: 0.5,
+    },
     iconContainer: {
       width: 36,
       height: 36,
@@ -152,6 +168,9 @@ const createStyles = (colors: any) =>
     iconContainerDestructive: {
       backgroundColor: "#FEE2E2",
     },
+    iconContainerDisabled: {
+      backgroundColor: colors.divider,
+    },
     optionLabel: {
       flex: 1,
       fontSize: typography.base,
@@ -160,6 +179,9 @@ const createStyles = (colors: any) =>
     },
     optionLabelDestructive: {
       color: colors.error,
+    },
+    optionLabelDisabled: {
+      color: colors.textMuted,
     },
     cancelButton: {
       backgroundColor: colors.surface,

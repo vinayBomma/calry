@@ -3,11 +3,13 @@ import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { FoodItem } from "../../lib/models/food";
 import { useFoodStore } from "../../store/foodStore";
+import { usePremiumStore } from "../../store/premiumStore";
 import { ActionSheet } from "../modals/ActionSheet";
 import { ConfirmDialog } from "../modals/ConfirmDialog";
 import { EditMealModal } from "../modals/EditMealModal";
 import { useTheme } from "../../lib/ThemeContext";
 import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
+import { router } from "expo-router";
 import {
   getMealTypeConfig,
   formatTime,
@@ -21,6 +23,7 @@ interface FoodLogItemProps {
 export function FoodLogItem({ item }: FoodLogItemProps) {
   const { colors } = useTheme();
   const { updateFoodItem, deleteFoodItem, addFavourite } = useFoodStore();
+  const isPremium = usePremiumStore((state) => state.isPremium());
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -49,6 +52,12 @@ export function FoodLogItem({ item }: FoodLogItemProps) {
   };
 
   const handleSaveFavourite = async () => {
+    if (!isPremium) {
+      setShowActionSheet(false);
+      router.push("/upgrade");
+      return;
+    }
+
     try {
       await addFavourite({
         id: Date.now().toString(),
@@ -72,9 +81,10 @@ export function FoodLogItem({ item }: FoodLogItemProps) {
       onPress: () => setShowEditModal(true),
     },
     {
-      label: "Save to Favourites",
+      label: isPremium ? "Save to Favourites" : "Save to Favourites (Premium)",
       icon: "star-outline" as const,
       onPress: () => handleSaveFavourite(),
+      disabled: !isPremium,
     },
     {
       label: "Delete",

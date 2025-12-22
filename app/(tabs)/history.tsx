@@ -10,10 +10,12 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
+import { router } from "expo-router";
 import { FoodItem } from "../../lib/models/food";
 import { getDatabase } from "../../lib/database";
 import { FoodLogItem } from "../../components/food/FoodLogItem";
 import { useTheme } from "../../lib/ThemeContext";
+import { usePremiumStore } from "../../store/premiumStore";
 import { spacing, typography, borderRadius } from "../../lib/theme";
 import { useFoodStore } from "../../store/foodStore";
 
@@ -26,6 +28,7 @@ interface DayData {
 
 export default function HistoryScreen() {
   const { colors } = useTheme();
+  const isPremium = usePremiumStore((state) => state.isPremium());
   const [historyData, setHistoryData] = useState<DayData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
@@ -43,9 +46,18 @@ export default function HistoryScreen() {
         "SELECT * FROM food_items ORDER BY timestamp DESC"
       );
 
+      // Filter to last 7 days for free/BYOK users
+      const cutoffDate = new Date();
+      const cutoffTime = isPremium
+        ? 0
+        : cutoffDate.getTime() - 7 * 24 * 60 * 60 * 1000;
+      const filteredItems = isPremium
+        ? items
+        : items.filter((item) => item.timestamp >= cutoffTime);
+
       // Group by date
       const groupedByDate: Record<string, FoodItem[]> = {};
-      items.forEach((item) => {
+      filteredItems.forEach((item) => {
         const date = new Date(item.timestamp);
         const dateKey = date.toISOString().split("T")[0];
         if (!groupedByDate[dateKey]) {
@@ -96,7 +108,7 @@ export default function HistoryScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isPremium]);
 
   useEffect(() => {
     if (isFocused) {
