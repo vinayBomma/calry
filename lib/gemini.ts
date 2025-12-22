@@ -247,3 +247,29 @@ All values must be positive numbers. Calories should be at least 50.`;
     };
   }
 }
+
+/**
+ * Validate a Gemini API key by making a test API call
+ * Returns true if valid, false otherwise
+ */
+export const validateGeminiApiKey = async (apiKey: string): Promise<boolean> => {
+  if (!apiKey || apiKey.trim().length === 0) {
+    return false;
+  }
+
+  try {
+    const testClient = new GoogleGenerativeAI(apiKey);
+    const model = testClient.getGenerativeModel({ model: "gemma-3-27b-it" });
+    
+    // Make a simple test call
+    const result = await model.generateContent("What is 2+2? Reply with just the number.");
+    const response = await result.response;
+    
+    // If we got a response, the key is valid
+    return response.text().length > 0;
+  } catch (error) {
+    console.error("API key validation failed:", error);
+    return false;
+  }
+};
+

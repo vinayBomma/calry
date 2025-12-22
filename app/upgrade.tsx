@@ -23,12 +23,11 @@ import {
 } from "../lib/revenuecat";
 import { spacing, typography, borderRadius, shadows } from "../lib/theme";
 
-type PricingOption = "monthly" | "yearly" | "lifetime";
+type PricingOption = "monthly" | "lifetime";
 
 const PRICING = {
   monthly: { price: "$1.99", period: "/month", savings: null },
-  yearly: { price: "$14.99", period: "/year", savings: "Save 37%" },
-  lifetime: { price: "$6.99", period: "one-time", savings: "Best Value" },
+  lifetime: { price: "$9.99", period: "one-time", savings: "Best Value" },
 };
 
 const FEATURES = [
@@ -75,7 +74,6 @@ export default function UpgradeScreen() {
     Record<string, PurchasesPackage | null>
   >({
     monthly: null,
-    yearly: null,
     lifetime: null,
   });
   const [isLoadingPackages, setIsLoadingPackages] = useState(true);
@@ -95,12 +93,6 @@ export default function UpgradeScreen() {
                 (p) =>
                   p.identifier === "$rc_monthly" ||
                   p.product.identifier === PRODUCT_IDS.MONTHLY
-              ) || null,
-            yearly:
-              pkgs.find(
-                (p) =>
-                  p.identifier === "$rc_annual" ||
-                  p.product.identifier === PRODUCT_IDS.YEARLY
               ) || null,
             lifetime:
               pkgs.find(
@@ -125,12 +117,7 @@ export default function UpgradeScreen() {
     if (pkg) {
       return {
         price: pkg.product.priceString,
-        period:
-          option === "lifetime"
-            ? "one-time"
-            : option === "yearly"
-            ? "/year"
-            : "/month",
+        period: option === "lifetime" ? "one-time" : "/month",
         savings: PRICING[option].savings,
       };
     }
@@ -160,8 +147,6 @@ export default function UpgradeScreen() {
         const expiresAt =
           selectedOption === "monthly"
             ? Date.now() + 30 * 24 * 60 * 60 * 1000
-            : selectedOption === "yearly"
-            ? Date.now() + 365 * 24 * 60 * 60 * 1000
             : undefined;
 
         await setPremiumTier("premium", purchaseType, expiresAt);
@@ -361,7 +346,7 @@ export default function UpgradeScreen() {
             <ActivityIndicator color={colors.textInverse} />
           ) : (
             <Text style={styles.purchaseButtonText}>
-              {hasTriedBefore ? "Upgrade Now" : "Subscribe"} •{" "}
+              {hasTriedBefore ? "Upgrade Now" : "Buy Now"} •{" "}
               {getPricing(selectedOption).price}
             </Text>
           )}

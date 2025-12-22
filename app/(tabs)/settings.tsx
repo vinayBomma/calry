@@ -17,12 +17,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import Constants from "expo-constants";
+import AsyncStorage from "expo-sqlite/kv-store";
 import {
   getDailyGoals,
   updateDailyGoals,
   DailyGoals,
   getUserProfile,
   updateUserProfile,
+  getDatabase,
 } from "../../lib/database";
 import {
   UserProfile,
@@ -68,6 +70,7 @@ export default function SettingsScreen() {
   const [showFavouritesModal, setShowFavouritesModal] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
@@ -241,6 +244,59 @@ export default function SettingsScreen() {
       );
     } finally {
       setShowImportConfirm(false);
+    }
+  };
+
+  const handleDeleteAllData = async () => {
+    try {
+      // Delete all AsyncStorage data
+      const allKeys = await AsyncStorage.getAllKeys();
+      if (allKeys.length > 0) {
+        await AsyncStorage.multiRemove(allKeys);
+      }
+
+      // Delete all SQLite database data
+      const db = await getDatabase();
+      const tables = [
+        "food_items",
+        "favorites",
+        "user_profile",
+        "daily_goals",
+        "ai_usage",
+      ];
+
+      for (const table of tables) {
+        try {
+          await db.execAsync(`DELETE FROM ${table}`);
+        } catch (err) {
+          // Table might not exist, continue
+          console.warn(`Could not delete from ${table}:`, err);
+        }
+      }
+
+      // Reset stores
+      await useFoodStore.getState().resetStore();
+      await usePremiumStore.getState().loadPremiumState();
+
+      showAlert(
+        "Success",
+        "All data has been deleted. The app will reload shortly.",
+        "success"
+      );
+
+      // Reload the app after a short delay
+      setTimeout(() => {
+        router.replace("/(tabs)");
+      }, 1000);
+    } catch (error) {
+      console.error("Error deleting data:", error);
+      showAlert(
+        "Error",
+        "Failed to delete all data. Please try again.",
+        "error"
+      );
+    } finally {
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -455,7 +511,11 @@ export default function SettingsScreen() {
           <View style={styles.settingsCard}>
             <TouchableOpacity
               style={styles.settingItem}
-              onPress={() => setShowFavouritesModal(true)}
+              onPress={() =>
+                isPremium()
+                  ? setShowFavouritesModal(true)
+                  : router.push("/upgrade")
+              }
               activeOpacity={0.7}
             >
               <View style={styles.settingIcon}>
@@ -468,15 +528,26 @@ export default function SettingsScreen() {
               <View style={styles.settingContent}>
                 <Text style={styles.settingTitle}>Manage Favourites</Text>
                 <Text style={styles.settingSubtitle}>
-                  {favourites.length} saved meal
-                  {favourites.length !== 1 ? "s" : ""}
+                  {isPremium()
+                    ? `${favourites.length} saved meal${
+                        favourites.length !== 1 ? "s" : ""
+                      }`
+                    : "Premium feature"}
                 </Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={colors.textMuted}
-              />
+              {isPremium() ? (
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={colors.textMuted}
+                />
+              ) : (
+                <Ionicons
+                  name="lock-closed"
+                  size={18}
+                  color={colors.textMuted}
+                />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -695,6 +766,57 @@ export default function SettingsScreen() {
                 />
               )}
             </TouchableOpacity>
+
+            <View style={styles.settingDivider} />
+
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={async () => {
+                try {
+                  await usePremiumStore.getState().startTrial();
+                  showAlert(
+                    "Success",
+                    "3-day trial activated for testing",
+                    "success"
+                  );
+                } catch (error) {
+                  showAlert("Error", "Failed to activate trial", "error");
+                }
+              }}
+            >
+              <View style={styles.settingIcon}>
+                <Ionicons
+                  name="star-outline"
+                  size={22}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Test 3-Day Trial</Text>
+                <Text style={styles.settingSubtitle}>
+                  Activate trial for testing
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.settingDivider} />
+
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() => setShowDeleteConfirm(true)}
+            >
+              <View style={styles.settingIcon}>
+                <Ionicons name="trash-outline" size={22} color={colors.error} />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={[styles.settingTitle, { color: colors.error }]}>
+                  Delete All Data
+                </Text>
+                <Text style={styles.settingSubtitle}>
+                  Clear all food logs, settings, and preferences
+                </Text>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -781,15 +903,23 @@ export default function SettingsScreen() {
                   styles.apiKeyModalSaveButton,
                   !apiKeyInput.trim() && { opacity: 0.5 },
                 ]}
-                onPress={() => {
+                onPress={async () => {
                   if (apiKeyInput.trim()) {
-                    setCustomApiKey(apiKeyInput.trim());
-                    setShowApiKeyModal(false);
-                    showAlert(
-                      "Success",
-                      "API key saved! You now have unlimited AI meals.",
-                      "success"
-                    );
+                    try {
+                      await setCustomApiKey(apiKeyInput.trim());
+                      setShowApiKeyModal(false);
+                      showAlert(
+                        "Success",
+                        "API key saved! You now have unlimited AI meals.",
+                        "success"
+                      );
+                    } catch (error) {
+                      showAlert(
+                        "Invalid API Key",
+                        "The API key you provided is invalid. Please check and try again.",
+                        "error"
+                      );
+                    }
                   }
                 }}
                 disabled={!apiKeyInput.trim()}
@@ -800,6 +930,17 @@ export default function SettingsScreen() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteAllData}
+        title="Delete All Data?"
+        message="This will permanently delete all your food logs, settings, and preferences. This action cannot be undone. Are you sure?"
+        confirmText="Delete All"
+        cancelText="Cancel"
+        destructive={true}
+      />
     </SafeAreaView>
   );
 }

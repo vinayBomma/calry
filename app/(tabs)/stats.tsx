@@ -10,10 +10,16 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
+import { router } from "expo-router";
 import { useTheme } from "../../lib/ThemeContext";
 import { getDatabase } from "../../lib/database";
 import { useProfileStore } from "../../store/profileStore";
 import { useFoodStore } from "../../store/foodStore";
+import {
+  usePremiumStore,
+  canAccessFeature,
+  PREMIUM_FEATURES,
+} from "../../store/premiumStore";
 import { CalorieChart } from "../../components/stats/CalorieChart";
 import { spacing, typography, borderRadius } from "../../lib/theme";
 
@@ -35,6 +41,7 @@ export default function StatsScreen() {
   const { colors } = useTheme();
   const { profile } = useProfileStore();
   const { goals } = useFoodStore();
+  const isPremium = usePremiumStore((state) => state.isPremium());
   const [period, setPeriod] = useState<Period>("weekly");
   const [stats, setStats] = useState<DayStats[]>([]);
   const [currentStreak, setCurrentStreak] = useState(0);
@@ -278,17 +285,29 @@ export default function StatsScreen() {
           style={[
             styles.toggleButton,
             period === "monthly" && styles.toggleButtonActive,
+            !isPremium && styles.toggleButtonDisabled,
           ]}
-          onPress={() => setPeriod("monthly")}
+          onPress={() => {
+            if (!isPremium) {
+              router.push("/upgrade");
+            } else {
+              setPeriod("monthly");
+            }
+          }}
         >
-          <Text
-            style={[
-              styles.toggleText,
-              period === "monthly" && styles.toggleTextActive,
-            ]}
-          >
-            Monthly
-          </Text>
+          <View style={styles.monthlyToggleContent}>
+            <Text
+              style={[
+                styles.toggleText,
+                period === "monthly" && styles.toggleTextActive,
+              ]}
+            >
+              Monthly
+            </Text>
+            {!isPremium && (
+              <Ionicons name="lock-closed" size={14} color={colors.textMuted} />
+            )}
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -411,6 +430,14 @@ const createStyles = (colors: any) =>
     },
     toggleButtonActive: {
       backgroundColor: colors.primary,
+    },
+    toggleButtonDisabled: {
+      opacity: 0.6,
+    },
+    monthlyToggleContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
     },
     toggleText: {
       fontSize: typography.sm,
