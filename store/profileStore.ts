@@ -79,21 +79,18 @@ export const useProfileStore = create<ProfileState>((set, get) => ({
     const { profile, updateProfile } = get();
     if (!profile) return;
 
-    // Calculate nutrition goals based on profile
-    const goals = calculateNutritionGoals(profile);
+    try {
+      // Update profile to mark onboarding as completed
+      await updateProfile({ onboardingCompleted: true });
 
-    // Update profile
-    await updateProfile({ onboardingCompleted: true });
+      // Force reload goals in food store from database
+      await useFoodStore.getState().loadGoals();
 
-    // Update food store goals
-    await useFoodStore.getState().updateGoals({
-      calorieGoal: goals.calorieGoal,
-      proteinGoal: goals.proteinGoal,
-      carbsGoal: goals.carbsGoal,
-      fatGoal: goals.fatGoal,
-    });
-
-    set({ isOnboardingComplete: true });
+      set({ isOnboardingComplete: true });
+    } catch (error) {
+      console.error("Failed to complete onboarding:", error);
+      throw error;
+    }
   },
 
   checkOnboardingStatus: async () => {

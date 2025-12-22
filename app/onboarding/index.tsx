@@ -1,4 +1,5 @@
-import { View, Text, TouchableOpacity } from "react-native";
+import { useState } from "react";
+import { View, Text, TouchableOpacity, TextInput } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useOnboardingStore } from "../../store/onboardingStore";
@@ -16,13 +17,30 @@ const genderOptions: { value: Gender; label: string; icon: string }[] = [
 export default function GenderAgeScreen() {
   const { gender, age, updateData } = useOnboardingStore();
   const { colors } = useTheme();
+  const [ageInput, setAgeInput] = useState(age.toString());
 
   const decreaseAge = () => {
-    if (age > 13) updateData({ age: age - 1 });
+    if (age > 13) {
+      const newAge = age - 1;
+      updateData({ age: newAge });
+      setAgeInput(newAge.toString());
+    }
   };
 
   const increaseAge = () => {
-    if (age < 100) updateData({ age: age + 1 });
+    if (age < 100) {
+      const newAge = age + 1;
+      updateData({ age: newAge });
+      setAgeInput(newAge.toString());
+    }
+  };
+
+  const handleAgeInputChange = (text: string) => {
+    const numValue = parseInt(text, 10);
+    setAgeInput(text);
+    if (!isNaN(numValue) && numValue >= 13 && numValue <= 100) {
+      updateData({ age: numValue });
+    }
   };
 
   return (
@@ -57,15 +75,11 @@ export default function GenderAgeScreen() {
                   justifyContent: "center",
                   padding: spacing.lg,
                   backgroundColor:
-                    gender === option.value
-                      ? colors.primaryBg
-                      : colors.surface,
+                    gender === option.value ? colors.primaryBg : colors.surface,
                   borderRadius: borderRadius.lg,
                   borderWidth: 2,
                   borderColor:
-                    gender === option.value
-                      ? colors.primary
-                      : colors.divider,
+                    gender === option.value ? colors.primary : colors.divider,
                   ...shadows.sm,
                 }}
                 onPress={() => updateData({ gender: option.value })}
@@ -133,25 +147,27 @@ export default function GenderAgeScreen() {
             >
               <Ionicons name="remove" size={28} color={colors.primary} />
             </TouchableOpacity>
-            <View style={{ alignItems: "center", minWidth: 100 }}>
-              <Text
+            <View
+              style={{
+                alignItems: "center",
+                minWidth: 120,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.sm,
+              }}
+            >
+              <TextInput
                 style={{
                   fontSize: 48,
                   fontFamily: typography.fontBold,
                   color: colors.textPrimary,
+                  textAlign: "center",
+                  width: "100%",
                 }}
-              >
-                {age}
-              </Text>
-              <Text
-                style={{
-                  fontSize: typography.sm,
-                  fontFamily: typography.fontMedium,
-                  color: colors.textMuted,
-                }}
-              >
-                years
-              </Text>
+                value={ageInput}
+                onChangeText={handleAgeInputChange}
+                keyboardType="number-pad"
+                maxLength={3}
+              />
             </View>
             <TouchableOpacity
               style={{

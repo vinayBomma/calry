@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Constants from "expo-constants";
+import * as Device from "expo-device";
 import { ThemeProvider, useTheme } from "../lib/ThemeContext";
 import { useFoodStore } from "../store/foodStore";
 import { usePremiumStore } from "../store/premiumStore";
@@ -32,6 +33,16 @@ function RootLayoutContent() {
       initializeRevenueCat();
 
       if (posthog) {
+        // Set device ID as the user ID for PostHog session replay
+        const deviceId = `${Device.brand || "unknown"}-${
+          Device.modelId || "device"
+        }`;
+        posthog.identify(deviceId, {
+          deviceBrand: Device.brand,
+          deviceName: Device.modelName,
+          osVersion: Device.osVersion,
+          osName: Device.osName,
+        });
         posthog.capture("app_opened");
       }
 

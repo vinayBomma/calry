@@ -42,8 +42,7 @@ export default function SummaryScreen() {
     goalAggressiveness,
     eatingType,
   } = useOnboardingStore();
-  const { completeOnboarding } = useProfileStore();
-  const { updateGoals } = useFoodStore();
+  const { completeOnboarding, loadProfile } = useProfileStore();
   const { colors } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -70,8 +69,10 @@ export default function SummaryScreen() {
   const handleComplete = async () => {
     setIsLoading(true);
     try {
-      // First save the profile and goals to database
+      // First save the profile to database
       await updateUserProfile(profile);
+
+      // Calculate and save goals based on the profile
       await updateDailyGoals({
         calorieGoal: goals.calorieGoal,
         proteinGoal: goals.proteinGoal,
@@ -79,16 +80,17 @@ export default function SummaryScreen() {
         fatGoal: goals.fatGoal,
       });
 
-      // Update the food store with the new goals
-      await updateGoals({
-        calorieGoal: goals.calorieGoal,
-        proteinGoal: goals.proteinGoal,
-        carbsGoal: goals.carbsGoal,
-        fatGoal: goals.fatGoal,
-      });
+      // Load the profile into the profile store so it has the latest data
+      await loadProfile();
 
-      // Then update the profile store to mark onboarding as complete
+      // Update the profile store which will mark onboarding as complete
       await completeOnboarding();
+
+      // Explicitly reload food store data from database to ensure fresh state
+      await useFoodStore.getState().loadData();
+
+      // Add a small delay to ensure state is updated before navigation
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       // Navigate to home
       router.replace("/(tabs)");

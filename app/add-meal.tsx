@@ -390,7 +390,8 @@ export default function AddMealScreen() {
               <View style={styles.tipContainer}>
                 <Ionicons name="bulb-outline" size={18} color="#FF9800" />
                 <Text style={styles.tipText}>
-                  Tip: Include portions and cooking methods for better estimates
+                  Tip: Include portions and cooking methods for better
+                  estimates. You can describe meals in your local language too!
                 </Text>
               </View>
 

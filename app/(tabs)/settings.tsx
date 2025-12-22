@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -14,6 +14,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import Constants from "expo-constants";
@@ -33,6 +34,7 @@ import {
 } from "../../lib/models/userProfile";
 import { useTheme } from "../../lib/ThemeContext";
 import { useFoodStore } from "../../store/foodStore";
+import { useProfileStore } from "../../store/profileStore";
 import {
   usePremiumStore,
   canAccessFeature,
@@ -103,6 +105,13 @@ export default function SettingsScreen() {
     loadData();
     loadPremiumState();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Reload data when screen comes into focus (e.g., after completing onboarding)
+      loadData();
+    }, [])
+  );
 
   const loadData = async () => {
     try {
@@ -266,7 +275,7 @@ export default function SettingsScreen() {
         await AsyncStorage.multiRemove(keysToDelete);
       }
 
-      // Delete only food and preference data from SQLite, preserve user_profile
+      // Delete only food data from SQLite, preserve user_profile
       const db = await getDatabase();
       const tablesToDelete = [
         "food_items",
@@ -284,14 +293,10 @@ export default function SettingsScreen() {
         }
       }
 
-      // Reset only food store, preserve premium state
+      // Reset food store only
       await useFoodStore.getState().resetStore();
 
-      showAlert(
-        "Success",
-        "Food logs and preferences cleared. Premium data preserved.",
-        "success"
-      );
+      showAlert("Success", "All food logs cleared.", "success");
 
       // Reload the app after a short delay
       setTimeout(() => {
@@ -919,7 +924,7 @@ export default function SettingsScreen() {
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleDeleteAllData}
         title="Delete All Data?"
-        message="This will permanently delete all your food logs and history. Your subscription status and API key will be preserved. This action cannot be undone. Are you sure?"
+        message="This will delete all food logs and history. Your profile will be preserved."
         confirmText="Delete All"
         cancelText="Cancel"
         destructive={true}
