@@ -44,6 +44,8 @@ interface PremiumState {
   canUseAI: () => boolean;
   getRemainingAIMeals: () => number;
   getEffectiveApiKey: () => string | null;
+  getRemainingTrialDays: () => number;
+  getRemainingSubscriptionDays: () => number;
 }
 
 const STORAGE_KEYS = {
@@ -274,24 +276,62 @@ export const usePremiumStore = create<PremiumState>((set, get) => ({
   },
 
   canUseAI: () => {
-    const { tier, isTrialActive, aiMealsUsedToday, customApiKey } = get();
+    const { tier, isTrialActive, aiMealsUsedToday, usageDate, customApiKey } = get();
+    const today = getTodayString();
+    
     if (tier === "premium" || tier === "byok" || isTrialActive || customApiKey) {
       return true;
     }
-    return aiMealsUsedToday < FREE_AI_MEALS_PER_DAY;
+    
+    // Reset if it's a new day
+    let currentUsage = aiMealsUsedToday;
+    if (usageDate !== today) {
+      currentUsage = 0;
+    }
+    
+    return currentUsage < FREE_AI_MEALS_PER_DAY;
   },
 
   getRemainingAIMeals: () => {
-    const { tier, isTrialActive, aiMealsUsedToday, customApiKey } = get();
+    const { tier, isTrialActive, aiMealsUsedToday, usageDate, customApiKey } = get();
+    const today = getTodayString();
+    
     if (tier === "premium" || tier === "byok" || isTrialActive || customApiKey) {
       return Infinity;
     }
-    return Math.max(0, FREE_AI_MEALS_PER_DAY - aiMealsUsedToday);
+    
+    // Reset if it's a new day
+    let currentUsage = aiMealsUsedToday;
+    if (usageDate !== today) {
+      currentUsage = 0;
+    }
+    
+    return Math.max(0, FREE_AI_MEALS_PER_DAY - currentUsage);
   },
 
   getEffectiveApiKey: () => {
     const { customApiKey } = get();
     return customApiKey;
+  },
+
+  getRemainingTrialDays: () => {
+    const { trialStartedAt, isTrialActive } = get();
+    if (!trialStartedAt || !isTrialActive) return 0;
+    
+    const elapsedMs = Date.now() - trialStartedAt;
+    const elapsedDays = Math.floor(elapsedMs / (24 * 60 * 60 * 1000));
+    const remainingDays = Math.max(0, TRIAL_DAYS - elapsedDays);
+    return remainingDays;
+  },
+
+  getRemainingSubscriptionDays: () => {
+    const { expiresAt, purchaseType } = get();
+    // Only subscription purchases have expiry
+    if (!expiresAt || purchaseType !== "subscription") return 0;
+    
+    const remainingMs = expiresAt - Date.now();
+    const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+    return Math.max(0, remainingDays);
   },
 }));
 

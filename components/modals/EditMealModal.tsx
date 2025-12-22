@@ -17,6 +17,7 @@ import { useTheme } from "../../lib/ThemeContext";
 import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
 import { MEAL_OPTIONS, type MealType } from "../../lib/hooks/useMealConfig";
 import { getFoodNutritionInfo } from "../../lib/gemini";
+import { usePremiumStore } from "../../store/premiumStore";
 
 interface EditMealModalProps {
   visible: boolean;
@@ -32,6 +33,7 @@ export function EditMealModal({
   onSave,
 }: EditMealModalProps) {
   const { colors } = useTheme();
+  const { canUseAI, getRemainingAIMeals } = usePremiumStore();
   const [name, setName] = useState(item.name);
   const [description, setDescription] = useState(item.description || "");
   const [calories, setCalories] = useState(item.calories.toString());
@@ -55,7 +57,12 @@ export function EditMealModal({
 
   const handleAnalyze = async () => {
     if (!description.trim()) return;
-    
+
+    // Check if user can use AI
+    if (!canUseAI()) {
+      return;
+    }
+
     setIsAnalyzing(true);
     try {
       const nutritionInfo = await getFoodNutritionInfo(description);
@@ -126,17 +133,33 @@ export function EditMealModal({
                   textAlignVertical="top"
                 />
                 {(isDescriptionChanged || !calories || calories === "0") && (
-                  <TouchableOpacity 
-                    style={[styles.aiButton, isAnalyzing && styles.aiButtonDisabled]} 
+                  <TouchableOpacity
+                    style={[
+                      styles.aiButton,
+                      (isAnalyzing || !canUseAI()) && styles.aiButtonDisabled,
+                    ]}
                     onPress={handleAnalyze}
-                    disabled={isAnalyzing || !description.trim()}
+                    disabled={isAnalyzing || !description.trim() || !canUseAI()}
                   >
                     {isAnalyzing ? (
                       <ActivityIndicator size="small" color={colors.primary} />
                     ) : (
                       <>
-                        <Ionicons name="sparkles" size={16} color={colors.primary} />
-                        <Text style={styles.aiButtonText}>Analyze</Text>
+                        <Ionicons
+                          name="sparkles"
+                          size={16}
+                          color={canUseAI() ? colors.primary : colors.textMuted}
+                        />
+                        <Text
+                          style={[
+                            styles.aiButtonText,
+                            !canUseAI() && { color: colors.textMuted },
+                          ]}
+                        >
+                          {canUseAI()
+                            ? "Analyze"
+                            : `(${getRemainingAIMeals()} left)`}
+                        </Text>
                       </>
                     )}
                   </TouchableOpacity>
@@ -157,8 +180,8 @@ export function EditMealModal({
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Meal Type</Text>
-              <ScrollView 
-                horizontal 
+              <ScrollView
+                horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.mealTypeContainer}
               >
@@ -175,15 +198,16 @@ export function EditMealModal({
                       name={option.icon}
                       size={16}
                       color={
-                        mealType === option.type 
-                          ? colors.primary 
+                        mealType === option.type
+                          ? colors.primary
                           : colors.textSecondary
                       }
                     />
                     <Text
                       style={[
                         styles.mealTypeLabel,
-                        mealType === option.type && styles.mealTypeLabelSelected,
+                        mealType === option.type &&
+                          styles.mealTypeLabelSelected,
                       ]}
                     >
                       {option.label}
@@ -353,7 +377,7 @@ const createStyles = (colors: any) =>
       borderTopWidth: 1,
       borderTopColor: colors.border,
       marginTop: spacing.md,
-      marginBottom: Platform.OS === 'ios' ? spacing.xl : spacing.md,
+      marginBottom: Platform.OS === "ios" ? spacing.xl : spacing.md,
     },
     saveButton: {
       backgroundColor: colors.primary,

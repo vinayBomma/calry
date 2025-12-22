@@ -26,7 +26,7 @@ import { spacing, typography, borderRadius, shadows } from "../lib/theme";
 type PricingOption = "monthly" | "lifetime";
 
 const PRICING = {
-  monthly: { price: "$1.99", period: "/month", savings: null },
+  monthly: { price: "$1.49", period: "/month", savings: null },
   lifetime: { price: "$9.99", period: "one-time", savings: "Best Value" },
 };
 

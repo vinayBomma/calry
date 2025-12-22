@@ -669,10 +669,10 @@ const createStyles = (colors: any) =>
     },
     textInput: {
       fontSize: typography.base,
-      fontFamily: typography.fontRegular, // Added font family
+      fontFamily: typography.fontRegular,
       color: colors.textPrimary,
-      minHeight: 120,
-      lineHeight: 24,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
     },
     tipContainer: {
       flexDirection: "row",
