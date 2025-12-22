@@ -46,6 +46,7 @@ interface FoodState {
   updateGoals: (goals: DailyGoals) => Promise<void>;
   addFavourite: (meal: FavouriteMeal) => Promise<void>;
   deleteFavourite: (id: string) => Promise<void>;
+  resetStore: () => Promise<void>;
 
   // Selectors
   getFoodItemsByMeal: (mealType: MealType) => FoodItem[];
@@ -238,6 +239,20 @@ export const useFoodStore = create<FoodState>((set, get) => ({
     }
   },
 
+  resetStore: () => {
+    set({
+      foodItems: [],
+      favourites: [],
+      goals: { calorieGoal: 2000, proteinGoal: 120, carbsGoal: 250, fatGoal: 65 },
+      isLoading: false,
+      selectedDate: new Date().toISOString().split('T')[0],
+      totals: { calories: 0, protein: 0, carbs: 0, fat: 0 },
+      lastUpdated: Date.now(),
+    });
+    return Promise.resolve();
+  },
+
+  // Selectors
   getFoodItemsByMeal: (mealType) => {
     return get().foodItems.filter((item) => item.mealType === mealType);
   },

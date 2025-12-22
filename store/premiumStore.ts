@@ -1,6 +1,12 @@
 import { create } from "zustand";
 import AsyncStorage from "expo-sqlite/kv-store";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import Constants from "expo-constants";
 import { getDatabase } from "../lib/database";
+import { validateGeminiApiKey, initializeGemini } from "../lib/gemini";
+
+// Get default Gemini API Key from environment variables
+const GEMINI_API_KEY = Constants.expoConfig?.extra?.geminiApiKey || "";
 
 // Constants
 const FREE_AI_MEALS_PER_DAY = 3;
@@ -131,6 +137,11 @@ export const usePremiumStore = create<PremiumState>((set, get) => ({
         aiMealsUsedToday,
         usageDate: today,
       });
+
+      // Initialize Gemini with custom API key if present
+      if (customApiKey) {
+        initializeGemini(customApiKey);
+      }
     } catch (error) {
       console.error("Error loading premium state:", error);
     }
@@ -159,16 +170,31 @@ export const usePremiumStore = create<PremiumState>((set, get) => ({
   setCustomApiKey: async (key) => {
     try {
       if (key) {
+        // Validate the API key before storing
+        const isValid = await validateGeminiApiKey(key);
+        if (!isValid) {
+          throw new Error("Invalid Gemini API key");
+        }
+        
+        // Initialize Gemini with the custom key
+        initializeGemini(key);
+        
         await AsyncStorage.setItem(STORAGE_KEYS.CUSTOM_API_KEY, key);
         await AsyncStorage.setItem(STORAGE_KEYS.TIER, "byok");
         set({ customApiKey: key, tier: "byok" });
       } else {
+        // When removing custom key, revert to free plan
         await AsyncStorage.removeItem(STORAGE_KEYS.CUSTOM_API_KEY);
+        // Initialize Gemini with default key if available (for remaining AI meals)
+        if (GEMINI_API_KEY) {
+          initializeGemini(GEMINI_API_KEY);
+        }
         await AsyncStorage.setItem(STORAGE_KEYS.TIER, "free");
         set({ customApiKey: null, tier: "free" });
       }
     } catch (error) {
       console.error("Error setting custom API key:", error);
+      throw error; // Re-throw so caller can handle
     }
   },
 
@@ -242,7 +268,9 @@ export const usePremiumStore = create<PremiumState>((set, get) => ({
   // Selectors
   isPremium: () => {
     const { tier, isTrialActive } = get();
-    return tier === "premium" || tier === "byok" || isTrialActive;
+    // Only true premium tier and active trial get all features
+    // BYOK mode only gets unlimited AI, not other premium features
+    return tier === "premium" || isTrialActive;
   },
 
   canUseAI: () => {
@@ -282,15 +310,18 @@ export type PremiumFeature = (typeof PREMIUM_FEATURES)[keyof typeof PREMIUM_FEAT
 export const canAccessFeature = (feature: PremiumFeature): boolean => {
   const state = usePremiumStore.getState();
   const isPremium = state.isPremium();
+  const { tier } = state;
 
   switch (feature) {
     case PREMIUM_FEATURES.UNLIMITED_AI:
-      return isPremium;
+      // BYOK and Premium both allow unlimited AI
+      return isPremium || tier === "byok";
     case PREMIUM_FEATURES.BACKUP:
     case PREMIUM_FEATURES.RESTORE:
     case PREMIUM_FEATURES.FAVOURITES:
     case PREMIUM_FEATURES.FULL_STATS:
     case PREMIUM_FEATURES.FULL_HISTORY:
+      // Only true Premium tier (not BYOK) gets these features
       return isPremium;
     default:
       return false;
