@@ -2,6 +2,7 @@ import { View, Text, ScrollView, StyleSheet, Dimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../lib/ThemeContext";
 import { spacing, typography, borderRadius, shadows } from "../../lib/theme";
+import { useEffect, useRef } from "react";
 
 import { WeightGoal } from "../../lib/models/userProfile";
 
@@ -31,18 +32,43 @@ export function CalorieChart({
 }: CalorieChartProps) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const screenWidth = Dimensions.get("window").width;
   const padding = spacing.lg * 2;
-  const availableWidth = screenWidth - padding - (spacing.lg * 2); // Internal padding
-  
+  const availableWidth = screenWidth - padding - spacing.lg * 2; // Internal padding
+
   // Width calculations
   const barGap = period === "weekly" ? 12 : 6;
-  const barWidth = period === "weekly" 
-    ? (availableWidth - (6 * barGap)) / 7 
-    : 16; // Fixed width for monthly with scroll
+  const barWidth = period === "weekly" ? (availableWidth - 6 * barGap) / 7 : 16; // Fixed width for monthly with scroll
 
   const isGaining = weightGoal === "gain";
+
+  // Auto-scroll to today for monthly view
+  useEffect(() => {
+    if (period === "monthly" && scrollViewRef.current) {
+      // Find today's position in the stats array
+      const todayIndex = stats.findIndex(
+        (day) => day.date === new Date().toISOString().split("T")[0]
+      );
+      if (todayIndex !== -1) {
+        // Calculate scroll position to center today on screen
+        const barGapSize = 6;
+        const totalBarWidth = barWidth + barGapSize;
+        const scrollPosition = Math.max(
+          0,
+          todayIndex * totalBarWidth - availableWidth / 2
+        );
+
+        setTimeout(() => {
+          scrollViewRef.current?.scrollTo({
+            x: scrollPosition,
+            animated: true,
+          });
+        }, 100);
+      }
+    }
+  }, [period, stats, barWidth, availableWidth]);
 
   return (
     <View style={styles.chartContainer}>
@@ -56,21 +82,37 @@ export function CalorieChart({
       </View>
 
       <ScrollView
+        ref={scrollViewRef}
         horizontal
         showsHorizontalScrollIndicator={false}
         scrollEnabled={period === "monthly"}
         contentContainerStyle={[
           styles.scrollContent,
-          period === "weekly" && { width: '100%', justifyContent: 'space-between' }
+          period === "weekly" && {
+            width: "100%",
+            justifyContent: "space-between",
+          },
         ]}
       >
-        <View style={[styles.barsContainer, period === "weekly" && { width: '100%', justifyContent: 'space-between' }]}>
+        <View
+          style={[
+            styles.barsContainer,
+            period === "weekly" && {
+              width: "100%",
+              justifyContent: "space-between",
+            },
+          ]}
+        >
           {stats.map((day, index) => {
-            const barHeight = maxCalories > 0 ? (day.calories / maxCalories) * CHART_HEIGHT : 0;
+            const barHeight =
+              maxCalories > 0 ? (day.calories / maxCalories) * CHART_HEIGHT : 0;
             const goalHeight = (calorieGoal / maxCalories) * CHART_HEIGHT;
-            
-            const isToday = day.date === new Date().toISOString().split('T')[0];
-            const showLabel = period === "weekly" || (index % 5 === 0) || index === stats.length - 1;
+
+            const isToday = day.date === new Date().toISOString().split("T")[0];
+            const showLabel =
+              period === "weekly" ||
+              index % 5 === 0 ||
+              index === stats.length - 1;
 
             // Dynamic color logic based on pre-calculated metGoal
             let barColor = colors.divider; // Default for no data (Grey)
@@ -79,16 +121,29 @@ export function CalorieChart({
             }
 
             return (
-              <View key={day.date} style={[styles.barColumn, { width: barWidth, marginRight: period === "monthly" ? barGap : 0 }]}>
+              <View
+                key={day.date}
+                style={[
+                  styles.barColumn,
+                  {
+                    width: barWidth,
+                    marginRight: period === "monthly" ? barGap : 0,
+                  },
+                ]}
+              >
                 <View style={styles.barTrack}>
                   {/* Goal Line Reference */}
-                  <View 
+                  <View
                     style={[
-                      styles.goalReferenceLine, 
-                      { bottom: goalHeight, backgroundColor: colors.primary, opacity: 0.2 }
-                    ]} 
+                      styles.goalReferenceLine,
+                      {
+                        bottom: goalHeight,
+                        backgroundColor: colors.primary,
+                        opacity: 0.2,
+                      },
+                    ]}
                   />
-                  
+
                   {/* The Bar */}
                   <View
                     style={[
@@ -102,7 +157,15 @@ export function CalorieChart({
                   />
                 </View>
                 {showLabel && (
-                  <Text style={[styles.barLabel, isToday && { color: colors.primary, fontFamily: typography.fontBold }]}>
+                  <Text
+                    style={[
+                      styles.barLabel,
+                      isToday && {
+                        color: colors.primary,
+                        fontFamily: typography.fontBold,
+                      },
+                    ]}
+                  >
                     {day.label}
                   </Text>
                 )}
@@ -114,7 +177,9 @@ export function CalorieChart({
 
       <View style={styles.legend}>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+          <View
+            style={[styles.legendDot, { backgroundColor: colors.primary }]}
+          />
           <Text style={styles.legendText}>Goal Met</Text>
         </View>
         <View style={styles.legendItem}>
@@ -122,7 +187,9 @@ export function CalorieChart({
           <Text style={styles.legendText}>Goal Not Met</Text>
         </View>
         <View style={styles.legendItem}>
-          <View style={[styles.legendDot, { backgroundColor: colors.divider }]} />
+          <View
+            style={[styles.legendDot, { backgroundColor: colors.divider }]}
+          />
           <Text style={styles.legendText}>No Data</Text>
         </View>
       </View>
@@ -141,9 +208,9 @@ const createStyles = (colors: any) =>
       ...shadows.sm,
     },
     chartHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
       marginBottom: spacing.xl,
     },
     chartTitle: {
@@ -171,25 +238,25 @@ const createStyles = (colors: any) =>
       height: CHART_HEIGHT + 30, // Extra space for labels
     },
     barColumn: {
-      alignItems: 'center',
-      height: '100%',
-      justifyContent: 'flex-end',
+      alignItems: "center",
+      height: "100%",
+      justifyContent: "flex-end",
     },
     barTrack: {
-      width: '100%',
+      width: "100%",
       height: CHART_HEIGHT,
       backgroundColor: colors.surfaceSecondary,
       borderRadius: borderRadius.full,
-      overflow: 'hidden',
-      justifyContent: 'flex-end',
-      position: 'relative',
+      overflow: "hidden",
+      justifyContent: "flex-end",
+      position: "relative",
     },
     bar: {
-      width: '100%',
+      width: "100%",
       borderRadius: borderRadius.full,
     },
     goalReferenceLine: {
-      position: 'absolute',
+      position: "absolute",
       left: 0,
       right: 0,
       height: 2,

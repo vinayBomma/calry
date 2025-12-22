@@ -10,8 +10,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
-import * as SQLite from "expo-sqlite";
 import { useTheme } from "../../lib/ThemeContext";
+import { getDatabase } from "../../lib/database";
 import { useProfileStore } from "../../store/profileStore";
 import { useFoodStore } from "../../store/foodStore";
 import { CalorieChart } from "../../components/stats/CalorieChart";
@@ -41,31 +41,33 @@ export default function StatsScreen() {
   const [bestStreak, setBestStreak] = useState(0);
   const [avgCalories, setAvgCalories] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
-  const dbRef = useRef<SQLite.SQLiteDatabase | null>(null);
 
   const isGainingWeight = profile?.weightGoal === "gain";
   const isFocused = useIsFocused();
   const lastUpdated = useFoodStore((state) => state.lastUpdated);
-
-  const getDatabase = async () => {
-    if (!dbRef.current) {
-      dbRef.current = await SQLite.openDatabaseAsync("snacktrack.db");
-    }
-    return dbRef.current;
-  };
 
   const loadStats = useCallback(async () => {
     try {
       setIsLoading(true);
       const db = await getDatabase();
 
-      const days = period === "weekly" ? 7 : 30;
       const today = new Date();
       today.setHours(23, 59, 59, 999);
 
-      const startDate = new Date(today);
-      startDate.setDate(startDate.getDate() - days + 1);
-      startDate.setHours(0, 0, 0, 0);
+      let startDate: Date;
+      let days: number;
+
+      if (period === "weekly") {
+        days = 7;
+        startDate = new Date(today);
+        startDate.setDate(startDate.getDate() - days + 1);
+        startDate.setHours(0, 0, 0, 0);
+      } else {
+        // For monthly: show current calendar month from 1st to today
+        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+        startDate.setHours(0, 0, 0, 0);
+        days = today.getDate(); // Number of days in current month so far
+      }
 
       const dailyData = await db.getAllAsync<DailyCalorieRow>(
         `SELECT date(timestamp/1000, 'unixepoch', 'localtime') as dateKey, 
@@ -93,7 +95,10 @@ export default function StatsScreen() {
       let totalCalories = 0;
       let daysWithData = 0;
 
-      for (let i = 0; i < days; i++) {
+      // For monthly stats, iterate through all days of current month
+      const daysToShow = period === "weekly" ? days : today.getDate();
+
+      for (let i = 0; i < daysToShow; i++) {
         const date = new Date(startDate);
         date.setDate(date.getDate() + i);
         const dateKey = `${date.getFullYear()}-${String(
@@ -122,7 +127,6 @@ export default function StatsScreen() {
         daysWithData > 0 ? Math.round(totalCalories / daysWithData) : 0
       );
 
-      // Calculate streaks
       const allDailyData = await db.getAllAsync<DailyCalorieRow>(
         `SELECT date(timestamp/1000, 'unixepoch', 'localtime') as dateKey, 
                 SUM(calories) as totalCalories 

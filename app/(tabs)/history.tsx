@@ -10,8 +10,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
-import * as SQLite from "expo-sqlite";
 import { FoodItem } from "../../lib/models/food";
+import { getDatabase } from "../../lib/database";
 import { FoodLogItem } from "../../components/food/FoodLogItem";
 import { useTheme } from "../../lib/ThemeContext";
 import { spacing, typography, borderRadius } from "../../lib/theme";
@@ -36,7 +36,7 @@ export default function HistoryScreen() {
   const loadHistory = useCallback(async () => {
     try {
       setIsLoading(true);
-      const db = await SQLite.openDatabaseAsync("snacktrack.db");
+      const db = await getDatabase();
 
       // Get all food items grouped by date
       const items = await db.getAllAsync<FoodItem>(
@@ -102,7 +102,7 @@ export default function HistoryScreen() {
     if (isFocused) {
       loadHistory();
     }
-  }, [isFocused, lastUpdated, loadHistory]);
+  }, [isFocused, lastUpdated]);
 
   const toggleExpand = (date: string) => {
     setExpandedDate(expandedDate === date ? null : date);
