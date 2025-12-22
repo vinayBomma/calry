@@ -159,18 +159,15 @@ export const useFoodStore = create<FoodState>((set, get) => ({
   deleteFoodItem: async (id) => {
     try {
       await dbDeleteFoodItem(id);
-      const { foodItems, selectedDate } = get();
-      const newItems = foodItems.filter((item) => item.id !== id);
       
-      // Always update lastUpdated to trigger reactive updates in other screens
+      // Reload current date's items from database to ensure consistency
+      const { selectedDate } = get();
+      const updatedItems = await getAllFoodItems(selectedDate);
       set({
-        foodItems: newItems,
-        totals: calculateTotals(newItems),
+        foodItems: updatedItems,
+        totals: calculateTotals(updatedItems),
         lastUpdated: Date.now(),
       });
-      
-      // If item wasn't in current view (different date), still trigger lastUpdated
-      // This ensures History/Stats reload even when deleting items from other dates
     } catch (error) {
       console.error("Failed to delete food item:", error);
       throw error;
