@@ -9,6 +9,8 @@ import {
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useOnboardingStore } from "../../store/onboardingStore";
+import { useProfileStore } from "../../store/profileStore";
+import { useFoodStore } from "../../store/foodStore";
 import { useTheme } from "../../lib/ThemeContext";
 import {
   calculateNutritionGoals,
@@ -24,10 +26,24 @@ import { OnboardingLayout } from "../../components/layout/OnboardingLayout";
 
 export default function SummaryScreen() {
   const {
-    gender, age, heightCm, heightFeet, heightInches, heightUnit,
-    weightKg, weightLbs, weightUnit, targetWeightKg, targetWeightLbs,
-    activityLevel, weightGoal, goalAggressiveness, eatingType
+    gender,
+    age,
+    heightCm,
+    heightFeet,
+    heightInches,
+    heightUnit,
+    weightKg,
+    weightLbs,
+    weightUnit,
+    targetWeightKg,
+    targetWeightLbs,
+    activityLevel,
+    weightGoal,
+    goalAggressiveness,
+    eatingType,
   } = useOnboardingStore();
+  const { completeOnboarding } = useProfileStore();
+  const { updateGoals } = useFoodStore();
   const { colors } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -54,6 +70,7 @@ export default function SummaryScreen() {
   const handleComplete = async () => {
     setIsLoading(true);
     try {
+      // First save the profile and goals to database
       await updateUserProfile(profile);
       await updateDailyGoals({
         calorieGoal: goals.calorieGoal,
@@ -61,6 +78,19 @@ export default function SummaryScreen() {
         carbsGoal: goals.carbsGoal,
         fatGoal: goals.fatGoal,
       });
+
+      // Update the food store with the new goals
+      await updateGoals({
+        calorieGoal: goals.calorieGoal,
+        proteinGoal: goals.proteinGoal,
+        carbsGoal: goals.carbsGoal,
+        fatGoal: goals.fatGoal,
+      });
+
+      // Then update the profile store to mark onboarding as complete
+      await completeOnboarding();
+
+      // Navigate to home
       router.replace("/(tabs)");
     } catch (error) {
       console.error("Error saving profile:", error);
@@ -70,15 +100,11 @@ export default function SummaryScreen() {
   };
 
   const displayHeight =
-    heightUnit === "cm"
-      ? `${heightCm} cm`
-      : `${heightFeet}'${heightInches}"`;
+    heightUnit === "cm" ? `${heightCm} cm` : `${heightFeet}'${heightInches}"`;
   const displayWeight =
     weightUnit === "kg" ? `${weightKg} kg` : `${weightLbs} lbs`;
   const displayTargetWeight =
-    weightUnit === "kg"
-      ? `${targetWeightKg} kg`
-      : `${targetWeightLbs} lbs`;
+    weightUnit === "kg" ? `${targetWeightKg} kg` : `${targetWeightLbs} lbs`;
 
   const styles = createStyles(colors);
 
