@@ -14,12 +14,11 @@ const REVENUECAT_ANDROID_KEY = Constants.expoConfig?.extra?.revenueCatAndroidKey
 // Product identifiers - must match RevenueCat dashboard
 export const PRODUCT_IDS = {
   MONTHLY: "snacktrack_premium_monthly",
-  YEARLY: "snacktrack_premium_yearly",
   LIFETIME: "snacktrack_premium_lifetime",
 } as const;
 
 // Entitlement identifier
-export const ENTITLEMENT_ID = "premium";
+export const ENTITLEMENT_ID = "snacktrack";
 
 let isInitialized = false;
 

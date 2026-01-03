@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import AsyncStorage from "expo-sqlite/kv-store";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import Constants from "expo-constants";
 import { getDatabase } from "../lib/database";
 import { validateGeminiApiKey, initializeGemini } from "../lib/gemini";
@@ -10,6 +10,7 @@ const GEMINI_API_KEY = Constants.expoConfig?.extra?.geminiApiKey || "";
 
 // Constants
 const FREE_AI_MEALS_PER_DAY = 3;
+const FREE_AI_CAMERA_SCANS = 1; // One trial scan for free users (lifetime)
 const TRIAL_DAYS = 3;
 
 export type PremiumTier = "free" | "premium" | "byok";
@@ -29,12 +30,14 @@ interface PremiumState {
   // Usage tracking
   aiMealsUsedToday: number;
   usageDate: string; // YYYY-MM-DD format
+  aiCameraScansUsed: number; // Lifetime count for free users
 
   // Actions
   loadPremiumState: () => Promise<void>;
   setPremiumTier: (tier: PremiumTier, purchaseType?: PurchaseType, expiresAt?: number) => Promise<void>;
   setCustomApiKey: (key: string | null) => Promise<void>;
   incrementAIUsage: () => Promise<boolean>; // Returns true if allowed, false if limit reached
+  incrementAICameraUsage: () => Promise<boolean>; // Returns true if allowed (premium or trial scan available)
   resetDailyUsage: () => Promise<void>;
   startTrial: () => Promise<void>;
   checkTrialStatus: () => boolean;
@@ -42,18 +45,21 @@ interface PremiumState {
   // Computed selectors
   isPremium: () => boolean;
   canUseAI: () => boolean;
+  canUseAICamera: () => boolean; // Check if user can use AI camera (premium or has trial left)
   getRemainingAIMeals: () => number;
+  getRemainingAICameraScans: () => number; // For free users, returns 0 or 1
   getEffectiveApiKey: () => string | null;
   getRemainingTrialDays: () => number;
   getRemainingSubscriptionDays: () => number;
 }
 
 const STORAGE_KEYS = {
-  TIER: "snacktrack_premium_tier",
-  PURCHASE_TYPE: "snacktrack_purchase_type",
-  EXPIRES_AT: "snacktrack_expires_at",
-  TRIAL_STARTED: "snacktrack_trial_started",
-  CUSTOM_API_KEY: "snacktrack_custom_api_key",
+  TIER: "calry_premium_tier",
+  PURCHASE_TYPE: "calry_purchase_type",
+  EXPIRES_AT: "calry_expires_at",
+  TRIAL_STARTED: "calry_trial_started",
+  CUSTOM_API_KEY: "calry_custom_api_key",
+  AI_CAMERA_SCANS: "calry_ai_camera_scans",
 };
 
 const getTodayString = () => new Date().toISOString().split("T")[0];
@@ -67,16 +73,18 @@ export const usePremiumStore = create<PremiumState>((set, get) => ({
   customApiKey: null,
   aiMealsUsedToday: 0,
   usageDate: getTodayString(),
+  aiCameraScansUsed: 0,
 
   loadPremiumState: async () => {
     try {
       // Load from AsyncStorage
-      const [tier, purchaseType, expiresAt, trialStarted, customApiKey] = await Promise.all([
+      const [tier, purchaseType, expiresAt, trialStarted, customApiKey, aiCameraScans] = await Promise.all([
         AsyncStorage.getItem(STORAGE_KEYS.TIER),
         AsyncStorage.getItem(STORAGE_KEYS.PURCHASE_TYPE),
         AsyncStorage.getItem(STORAGE_KEYS.EXPIRES_AT),
         AsyncStorage.getItem(STORAGE_KEYS.TRIAL_STARTED),
         AsyncStorage.getItem(STORAGE_KEYS.CUSTOM_API_KEY),
+        AsyncStorage.getItem(STORAGE_KEYS.AI_CAMERA_SCANS),
       ]);
 
       // Load usage from database
@@ -121,7 +129,7 @@ export const usePremiumStore = create<PremiumState>((set, get) => ({
       // Check subscription expiry
       let effectiveTier = (tier as PremiumTier) || "free";
       const parsedExpiresAt = expiresAt ? parseInt(expiresAt) : null;
-      
+
       if (effectiveTier === "premium" && purchaseType === "subscription" && parsedExpiresAt) {
         if (Date.now() > parsedExpiresAt) {
           effectiveTier = "free";
@@ -138,6 +146,7 @@ export const usePremiumStore = create<PremiumState>((set, get) => ({
         customApiKey,
         aiMealsUsedToday,
         usageDate: today,
+        aiCameraScansUsed: aiCameraScans ? parseInt(aiCameraScans) : 0,
       });
 
       // Initialize Gemini with custom API key if present
@@ -177,10 +186,10 @@ export const usePremiumStore = create<PremiumState>((set, get) => ({
         if (!isValid) {
           throw new Error("Invalid Gemini API key");
         }
-        
+
         // Initialize Gemini with the custom key
         initializeGemini(key);
-        
+
         await AsyncStorage.setItem(STORAGE_KEYS.CUSTOM_API_KEY, key);
         await AsyncStorage.setItem(STORAGE_KEYS.TIER, "byok");
         set({ customApiKey: key, tier: "byok" });
@@ -251,6 +260,31 @@ export const usePremiumStore = create<PremiumState>((set, get) => ({
     }
   },
 
+  incrementAICameraUsage: async () => {
+    const { tier, isTrialActive, aiCameraScansUsed } = get();
+
+    // Premium users and trial users have unlimited AI camera access
+    if (tier === "premium" || isTrialActive) {
+      return true;
+    }
+
+    // Free users get exactly 1 trial scan (lifetime)
+    if (aiCameraScansUsed >= FREE_AI_CAMERA_SCANS) {
+      return false;
+    }
+
+    // Use the trial scan
+    try {
+      const newCount = aiCameraScansUsed + 1;
+      await AsyncStorage.setItem(STORAGE_KEYS.AI_CAMERA_SCANS, newCount.toString());
+      set({ aiCameraScansUsed: newCount });
+      return true;
+    } catch (error) {
+      console.error("Error incrementing AI camera usage:", error);
+      return false;
+    }
+  },
+
   startTrial: async () => {
     try {
       const now = Date.now();
@@ -278,35 +312,59 @@ export const usePremiumStore = create<PremiumState>((set, get) => ({
   canUseAI: () => {
     const { tier, isTrialActive, aiMealsUsedToday, usageDate, customApiKey } = get();
     const today = getTodayString();
-    
+
     if (tier === "premium" || tier === "byok" || isTrialActive || customApiKey) {
       return true;
     }
-    
+
     // Reset if it's a new day
     let currentUsage = aiMealsUsedToday;
     if (usageDate !== today) {
       currentUsage = 0;
     }
-    
+
     return currentUsage < FREE_AI_MEALS_PER_DAY;
+  },
+
+  canUseAICamera: () => {
+    const { tier, isTrialActive, aiCameraScansUsed } = get();
+
+    // Premium users and trial users can always use AI camera
+    if (tier === "premium" || isTrialActive) {
+      return true;
+    }
+
+    // Free users only if they haven't used their trial scan
+    return aiCameraScansUsed < FREE_AI_CAMERA_SCANS;
   },
 
   getRemainingAIMeals: () => {
     const { tier, isTrialActive, aiMealsUsedToday, usageDate, customApiKey } = get();
     const today = getTodayString();
-    
+
     if (tier === "premium" || tier === "byok" || isTrialActive || customApiKey) {
       return Infinity;
     }
-    
+
     // Reset if it's a new day
     let currentUsage = aiMealsUsedToday;
     if (usageDate !== today) {
       currentUsage = 0;
     }
-    
+
     return Math.max(0, FREE_AI_MEALS_PER_DAY - currentUsage);
+  },
+
+  getRemainingAICameraScans: () => {
+    const { tier, isTrialActive, aiCameraScansUsed } = get();
+
+    // Premium and trial users have unlimited
+    if (tier === "premium" || isTrialActive) {
+      return Infinity;
+    }
+
+    // Free users get 1 trial
+    return Math.max(0, FREE_AI_CAMERA_SCANS - aiCameraScansUsed);
   },
 
   getEffectiveApiKey: () => {
@@ -317,7 +375,7 @@ export const usePremiumStore = create<PremiumState>((set, get) => ({
   getRemainingTrialDays: () => {
     const { trialStartedAt, isTrialActive } = get();
     if (!trialStartedAt || !isTrialActive) return 0;
-    
+
     const elapsedMs = Date.now() - trialStartedAt;
     const elapsedDays = Math.floor(elapsedMs / (24 * 60 * 60 * 1000));
     const remainingDays = Math.max(0, TRIAL_DAYS - elapsedDays);
@@ -328,7 +386,7 @@ export const usePremiumStore = create<PremiumState>((set, get) => ({
     const { expiresAt, purchaseType } = get();
     // Only subscription purchases have expiry
     if (!expiresAt || purchaseType !== "subscription") return 0;
-    
+
     const remainingMs = expiresAt - Date.now();
     const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
     return Math.max(0, remainingDays);
@@ -338,6 +396,7 @@ export const usePremiumStore = create<PremiumState>((set, get) => ({
 // Feature access helpers
 export const PREMIUM_FEATURES = {
   UNLIMITED_AI: "unlimited_ai",
+  AI_CAMERA: "ai_camera",
   BACKUP: "backup",
   RESTORE: "restore",
   FAVOURITES: "favourites",
@@ -356,6 +415,9 @@ export const canAccessFeature = (feature: PremiumFeature): boolean => {
     case PREMIUM_FEATURES.UNLIMITED_AI:
       // BYOK and Premium both allow unlimited AI
       return isPremium || tier === "byok";
+    case PREMIUM_FEATURES.AI_CAMERA:
+      // Only Premium users get AI camera (free users get 1 trial via canUseAICamera)
+      return isPremium;
     case PREMIUM_FEATURES.BACKUP:
     case PREMIUM_FEATURES.RESTORE:
     case PREMIUM_FEATURES.FAVOURITES:

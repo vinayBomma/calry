@@ -30,7 +30,7 @@ import {
 } from "../lib/hooks/useMealConfig";
 import { AlertModal } from "../components/modals/AlertModal";
 
-type Tab = "ai" | "favourites" | "manual";
+type Tab = "ai" | "scan" | "favourites" | "manual";
 
 export default function AddMealScreen() {
   const { addFoodItem, favourites, selectedDate } = useFoodStore();
@@ -323,6 +323,26 @@ export default function AddMealScreen() {
               >
                 AI Input
               </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === "scan" && styles.tabActive]}
+              onPress={() => router.push("/scan")}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Ionicons
+                  name="scan-outline"
+                  size={16}
+                  color={activeTab === "scan" ? colors.primary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === "scan" && styles.tabTextActive,
+                  ]}
+                >
+                  Scan
+                </Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
               style={[
