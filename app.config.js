@@ -2,7 +2,7 @@ export default {
   expo: {
     name: "Calry",
     slug: "calry",
-    version: "1.0.2",
+    version: "1.1.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -36,7 +36,7 @@ export default {
     ],
     extra: {
       eas: {
-        projectId: "30280021-3570-468a-9c2f-6fea51571b9f",
+        projectId: "5fd764ee-3278-4553-9950-0fd8a44e855a",
       },
       geminiApiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY,
       posthogApiKey: process.env.EXPO_PUBLIC_POSTHOG_API_KEY,
