@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -7,17 +7,25 @@ import {
   TouchableOpacity,
   Alert,
   Switch,
+  Linking,
+  TextInput,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import Constants from "expo-constants";
+import AsyncStorage from "expo-sqlite/kv-store";
 import {
   getDailyGoals,
   updateDailyGoals,
   DailyGoals,
   getUserProfile,
   updateUserProfile,
+  getDatabase,
 } from "../../lib/database";
 import {
   UserProfile,
@@ -26,6 +34,12 @@ import {
 } from "../../lib/models/userProfile";
 import { useTheme } from "../../lib/ThemeContext";
 import { useFoodStore } from "../../store/foodStore";
+import { useProfileStore } from "../../store/profileStore";
+import {
+  usePremiumStore,
+  canAccessFeature,
+  PREMIUM_FEATURES,
+} from "../../store/premiumStore";
 import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
 import { GoalInput } from "../../components/settings/GoalInput";
 import { ProfileModal } from "../../components/modals/ProfileModal";
@@ -37,6 +51,16 @@ import { backupDatabase, restoreDatabase } from "../../lib/backup";
 export default function SettingsScreen() {
   const { colors, isDark, toggleTheme } = useTheme();
   const { favourites, deleteFavourite } = useFoodStore();
+  const {
+    tier,
+    isPremium,
+    customApiKey,
+    setCustomApiKey,
+    setPremiumTier,
+    loadPremiumState,
+    getRemainingTrialDays,
+    getRemainingSubscriptionDays,
+  } = usePremiumStore();
   const [goals, setGoals] = useState<DailyGoals>({
     calorieGoal: 2000,
     proteinGoal: 120,
@@ -49,6 +73,10 @@ export default function SettingsScreen() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showFavouritesModal, setShowFavouritesModal] = useState(false);
   const [showImportConfirm, setShowImportConfirm] = useState(false);
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [showDevTools, setShowDevTools] = useState(false);
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
     title: string;
@@ -75,7 +103,15 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     loadData();
+    loadPremiumState();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      // Reload data when screen comes into focus (e.g., after completing onboarding)
+      loadData();
+    }, [])
+  );
 
   const loadData = async () => {
     try {
@@ -150,7 +186,37 @@ export default function SettingsScreen() {
     setIsEditing(false);
   };
 
+  const handleFeedback = async () => {
+    const email = "snacktrack.feedback@gmail.com";
+    const subject = encodeURIComponent("SnackTrack Feedback");
+    const body = encodeURIComponent(
+      `\n\n---\nApp Version: ${
+        Constants.expoConfig?.version || "1.0.0"
+      }\nDevice: ${Constants.platform?.ios ? "iOS" : "Android"}`
+    );
+    const url = `mailto:${email}?subject=${subject}&body=${body}`;
+
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        showAlert(
+          "Error",
+          "No email app found. Please email us at snacktrack.feedback@gmail.com",
+          "error"
+        );
+      }
+    } catch (error) {
+      showAlert("Error", "Could not open email app", "error");
+    }
+  };
+
   const handleExport = async () => {
+    if (!canAccessFeature(PREMIUM_FEATURES.BACKUP)) {
+      router.push("/upgrade");
+      return;
+    }
     try {
       const result = await backupDatabase();
       if (result.shared) {
@@ -166,6 +232,10 @@ export default function SettingsScreen() {
   };
 
   const handleImport = async () => {
+    if (!canAccessFeature(PREMIUM_FEATURES.RESTORE)) {
+      router.push("/upgrade");
+      return;
+    }
     try {
       const success = await restoreDatabase();
       if (success) {
@@ -186,6 +256,57 @@ export default function SettingsScreen() {
       );
     } finally {
       setShowImportConfirm(false);
+    }
+  };
+
+  const handleDeleteAllData = async () => {
+    try {
+      // Delete only food and preference AsyncStorage data, preserve premium keys
+      const allKeys = await AsyncStorage.getAllKeys();
+      const premiumKeys = [
+        "snacktrack_premium_tier",
+        "snacktrack_custom_api_key",
+        "snacktrack_trial_started",
+        "snacktrack_expires_at",
+        "snacktrack_purchase_type",
+      ];
+      const keysToDelete = allKeys.filter((key) => !premiumKeys.includes(key));
+      if (keysToDelete.length > 0) {
+        await AsyncStorage.multiRemove(keysToDelete);
+      }
+
+      // Delete only food data from SQLite, preserve user_profile
+      const db = await getDatabase();
+      const tablesToDelete = [
+        "food_items",
+        "favorites",
+        "daily_goals",
+        "ai_usage",
+      ];
+
+      for (const table of tablesToDelete) {
+        try {
+          await db.execAsync(`DELETE FROM ${table}`);
+        } catch (err) {
+          // Table might not exist, continue
+          console.warn(`Could not delete from ${table}:`, err);
+        }
+      }
+
+      // Reset food store only
+      await useFoodStore.getState().resetStore();
+
+      showAlert("Success", "All food logs cleared.", "success");
+
+      // Reload the app after a short delay
+      setTimeout(() => {
+        router.replace("/(tabs)");
+      }, 1000);
+    } catch (error) {
+      console.error("Error deleting data:", error);
+      showAlert("Error", "Failed to delete data. Please try again.", "error");
+    } finally {
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -265,54 +386,49 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Profile Section - Opens Modal */}
-        {profile && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Profile</Text>
-            <View style={styles.settingsCard}>
-              <TouchableOpacity
-                style={styles.settingItem}
-                onPress={() => setShowProfileModal(true)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.settingIcon}>
-                  <Ionicons
-                    name="person-outline"
-                    size={22}
-                    color={colors.primary}
-                  />
-                </View>
-                <View style={styles.settingContent}>
-                  <Text style={styles.settingTitle}>Your Profile</Text>
-                  <Text style={styles.settingSubtitle}>
-                    {profile.gender.charAt(0).toUpperCase() +
-                      profile.gender.slice(1)}
-                    , {profile.age} years •{" "}
-                    {activityLevelLabels[profile.activityLevel]}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={20}
-                  color={colors.textMuted}
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Favourites Section */}
+        {/* App Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Favourites</Text>
+          <Text style={styles.sectionTitle}>App</Text>
           <View style={styles.settingsCard}>
             <TouchableOpacity
               style={styles.settingItem}
-              onPress={() => setShowFavouritesModal(true)}
+              onPress={() => setShowProfileModal(true)}
               activeOpacity={0.7}
             >
               <View style={styles.settingIcon}>
                 <Ionicons
-                  name="star-outline"
+                  name="person-outline"
+                  size={22}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Profile</Text>
+                <Text style={styles.settingSubtitle}>
+                  View and edit your information
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={18}
+                color={colors.textMuted}
+              />
+            </TouchableOpacity>
+
+            <View style={styles.settingDivider} />
+
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() =>
+                isPremium()
+                  ? setShowFavouritesModal(true)
+                  : router.push("/upgrade")
+              }
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingIcon}>
+                <Ionicons
+                  name="heart-outline"
                   size={22}
                   color={colors.primary}
                 />
@@ -320,23 +436,30 @@ export default function SettingsScreen() {
               <View style={styles.settingContent}>
                 <Text style={styles.settingTitle}>Manage Favourites</Text>
                 <Text style={styles.settingSubtitle}>
-                  {favourites.length} saved meal
-                  {favourites.length !== 1 ? "s" : ""}
+                  {isPremium()
+                    ? `${favourites.length} saved meal${
+                        favourites.length !== 1 ? "s" : ""
+                      }`
+                    : "Premium feature"}
                 </Text>
               </View>
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={colors.textMuted}
-              />
+              {isPremium() ? (
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={colors.textMuted}
+                />
+              ) : (
+                <Ionicons
+                  name="lock-closed"
+                  size={18}
+                  color={colors.textMuted}
+                />
+              )}
             </TouchableOpacity>
-          </View>
-        </View>
 
-        {/* App Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>App</Text>
-          <View style={styles.settingsCard}>
+            <View style={styles.settingDivider} />
+
             <View style={styles.settingItem}>
               <View style={styles.settingIcon}>
                 <Ionicons
@@ -358,10 +481,233 @@ export default function SettingsScreen() {
                 thumbColor={isDark ? colors.primary : colors.surface}
               />
             </View>
+
+            <View style={styles.settingDivider} />
+
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={handleFeedback}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingIcon}>
+                <Ionicons
+                  name="mail-outline"
+                  size={22}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Send Feedback</Text>
+                <Text style={styles.settingSubtitle}>
+                  Report bugs or request features
+                </Text>
+              </View>
+              <Ionicons
+                name="open-outline"
+                size={18}
+                color={colors.textMuted}
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
-        {/* About Section */}
+        {/* Premium Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Premium</Text>
+          <View style={styles.settingsCard}>
+            {/* Current Status */}
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() => !isPremium() && router.push("/upgrade")}
+              activeOpacity={isPremium() ? 1 : 0.7}
+            >
+              <View
+                style={[
+                  styles.settingIcon,
+                  isPremium() && { backgroundColor: colors.primaryBg },
+                ]}
+              >
+                <Ionicons
+                  name={isPremium() ? "diamond" : "diamond-outline"}
+                  size={22}
+                  color={colors.primary}
+                />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>
+                  {tier === "premium"
+                    ? "Premium"
+                    : tier === "byok"
+                    ? "Developer Mode"
+                    : "Free Plan"}
+                </Text>
+                <Text style={styles.settingSubtitle}>
+                  {tier === "byok"
+                    ? "Unlimited AI meals"
+                    : isPremium()
+                    ? getRemainingTrialDays() > 0
+                      ? `Trial: ${getRemainingTrialDays()} day${
+                          getRemainingTrialDays() !== 1 ? "s" : ""
+                        } remaining`
+                      : getRemainingSubscriptionDays() > 0
+                      ? `Expires in ${getRemainingSubscriptionDays()} day${
+                          getRemainingSubscriptionDays() !== 1 ? "s" : ""
+                        }`
+                      : "Unlimited AI meals & all features"
+                    : "3 AI meals/day • Tap to upgrade"}
+                </Text>
+              </View>
+              {!isPremium() && (
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  color={colors.textMuted}
+                />
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.settingDivider} />
+
+            {/* BYOK Option */}
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() => {
+                if (customApiKey) {
+                  // Clear the key
+                  Alert.alert(
+                    "Remove API Key",
+                    "Are you sure you want to remove your custom API key?",
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Remove",
+                        style: "destructive",
+                        onPress: () => setCustomApiKey(null),
+                      },
+                    ]
+                  );
+                } else {
+                  // Show API key input modal
+                  setApiKeyInput("");
+                  setShowApiKeyModal(true);
+                }
+              }}
+              activeOpacity={0.7}
+            >
+              <View style={styles.settingIcon}>
+                <Ionicons name="key-outline" size={22} color={colors.primary} />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingTitle}>Use Your Own API Key</Text>
+                <Text style={styles.settingSubtitle}>
+                  {customApiKey
+                    ? "API key configured ✓"
+                    : "For developers • Unlimited AI meals"}
+                </Text>
+              </View>
+              <Ionicons
+                name={customApiKey ? "checkmark-circle" : "chevron-forward"}
+                size={20}
+                color={customApiKey ? colors.success : colors.textMuted}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Developer Options - Testing Only */}
+        {showDevTools && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🛠 Developer Options</Text>
+            <View style={styles.settingsCard}>
+              <TouchableOpacity
+                style={[
+                  styles.settingItem,
+                  tier === "free" && { backgroundColor: colors.primaryBg },
+                ]}
+                onPress={() => setPremiumTier("free", undefined, undefined)}
+              >
+                <View style={styles.settingIcon}>
+                  <Ionicons
+                    name="person-outline"
+                    size={22}
+                    color={colors.textSecondary}
+                  />
+                </View>
+                <View style={styles.settingContent}>
+                  <Text style={styles.settingTitle}>Free Plan</Text>
+                  <Text style={styles.settingSubtitle}>
+                    3 AI meals/day, limited features
+                  </Text>
+                </View>
+                {tier === "free" && (
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={22}
+                    color={colors.primary}
+                  />
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.settingDivider} />
+
+              <TouchableOpacity
+                style={[
+                  styles.settingItem,
+                  tier === "premium" && { backgroundColor: colors.primaryBg },
+                ]}
+                onPress={() => setPremiumTier("premium", "one_time", undefined)}
+              >
+                <View style={styles.settingIcon}>
+                  <Ionicons name="diamond" size={22} color={colors.primary} />
+                </View>
+                <View style={styles.settingContent}>
+                  <Text style={styles.settingTitle}>Premium (Lifetime)</Text>
+                  <Text style={styles.settingSubtitle}>
+                    Unlimited AI, all features
+                  </Text>
+                </View>
+                {tier === "premium" && (
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={22}
+                    color={colors.primary}
+                  />
+                )}
+              </TouchableOpacity>
+
+              <View style={styles.settingDivider} />
+
+              <TouchableOpacity
+                style={[
+                  styles.settingItem,
+                  tier === "byok" && { backgroundColor: colors.primaryBg },
+                ]}
+                onPress={() => {
+                  setCustomApiKey("test_api_key_for_dev");
+                }}
+              >
+                <View style={styles.settingIcon}>
+                  <Ionicons name="key" size={22} color={colors.warning} />
+                </View>
+                <View style={styles.settingContent}>
+                  <Text style={styles.settingTitle}>BYOK Mode</Text>
+                  <Text style={styles.settingSubtitle}>
+                    Developer API key mode
+                  </Text>
+                </View>
+                {tier === "byok" && (
+                  <Ionicons
+                    name="checkmark-circle"
+                    size={22}
+                    color={colors.primary}
+                  />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Data Management Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data Management</Text>
           <View style={styles.settingsCard}>
@@ -378,18 +724,29 @@ export default function SettingsScreen() {
                 />
               </View>
               <View style={styles.settingContent}>
-                <Text style={styles.settingTitle}>Export Backup</Text>
+                <Text style={styles.settingTitle}>Export</Text>
                 <Text style={styles.settingSubtitle}>
-                  Save your data to a file
+                  {isPremium() ? "Save your data to a file" : "Premium feature"}
                 </Text>
               </View>
+              {!isPremium() && (
+                <Ionicons
+                  name="lock-closed"
+                  size={18}
+                  color={colors.textMuted}
+                />
+              )}
             </TouchableOpacity>
 
             <View style={styles.settingDivider} />
 
             <TouchableOpacity
               style={styles.settingItem}
-              onPress={() => setShowImportConfirm(true)}
+              onPress={() =>
+                isPremium()
+                  ? setShowImportConfirm(true)
+                  : router.push("/upgrade")
+              }
               activeOpacity={0.7}
             >
               <View style={styles.settingIcon}>
@@ -400,9 +757,35 @@ export default function SettingsScreen() {
                 />
               </View>
               <View style={styles.settingContent}>
-                <Text style={styles.settingTitle}>Import Backup</Text>
+                <Text style={styles.settingTitle}>Import</Text>
                 <Text style={styles.settingSubtitle}>
-                  Restore data from a file
+                  {isPremium() ? "Restore data from a file" : "Premium feature"}
+                </Text>
+              </View>
+              {!isPremium() && (
+                <Ionicons
+                  name="lock-closed"
+                  size={18}
+                  color={colors.textMuted}
+                />
+              )}
+            </TouchableOpacity>
+
+            <View style={styles.settingDivider} />
+
+            <TouchableOpacity
+              style={styles.settingItem}
+              onPress={() => setShowDeleteConfirm(true)}
+            >
+              <View style={styles.settingIcon}>
+                <Ionicons name="trash-outline" size={22} color={colors.error} />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={[styles.settingTitle, { color: colors.error }]}>
+                  Delete All Data
+                </Text>
+                <Text style={styles.settingSubtitle}>
+                  Clear all food logs, settings, and preferences
                 </Text>
               </View>
             </TouchableOpacity>
@@ -449,6 +832,100 @@ export default function SettingsScreen() {
         title="Import Data"
         message="This will overwrite all your current food logs and settings. Are you sure you want to proceed?"
         confirmText="Import"
+        cancelText="Cancel"
+        destructive={true}
+      />
+
+      {/* API Key Input Modal */}
+      <Modal
+        visible={showApiKeyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowApiKeyModal(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.apiKeyModalContent}>
+            <Text style={styles.apiKeyModalTitle}>Enter Gemini API Key</Text>
+            <Text style={styles.apiKeyModalSubtitle}>
+              Get your API key from Google AI Studio. This unlocks unlimited AI
+              meals.
+            </Text>
+            <TextInput
+              style={styles.apiKeyInput}
+              placeholder="Paste your API key here"
+              placeholderTextColor={colors.textMuted}
+              value={apiKeyInput}
+              onChangeText={setApiKeyInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry
+            />
+            <View style={styles.apiKeyModalButtons}>
+              <TouchableOpacity
+                style={styles.apiKeyModalCancelButton}
+                onPress={() => setShowApiKeyModal(false)}
+              >
+                <Text style={styles.apiKeyModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.apiKeyModalSaveButton,
+                  !apiKeyInput.trim() && { opacity: 0.5 },
+                ]}
+                onPress={async () => {
+                  if (apiKeyInput.trim()) {
+                    // Check if it's the dev password
+                    if (apiKeyInput.trim() === "Vinay123@tennis") {
+                      setShowDevTools(!showDevTools);
+                      setApiKeyInput("");
+                      setShowApiKeyModal(false);
+                      showAlert(
+                        "Dev Tools",
+                        showDevTools
+                          ? "Developer options hidden"
+                          : "Developer options visible",
+                        "info"
+                      );
+                      return;
+                    }
+
+                    // Otherwise treat as API key
+                    try {
+                      await setCustomApiKey(apiKeyInput.trim());
+                      setShowApiKeyModal(false);
+                      showAlert(
+                        "Success",
+                        "API key saved! You now have unlimited AI meals.",
+                        "success"
+                      );
+                    } catch (error) {
+                      showAlert(
+                        "Invalid API Key",
+                        "The API key you provided is invalid. Please check and try again.",
+                        "error"
+                      );
+                    }
+                  }
+                }}
+                disabled={!apiKeyInput.trim()}
+              >
+                <Text style={styles.apiKeyModalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      <ConfirmDialog
+        visible={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteAllData}
+        title="Delete All Data?"
+        message="This will delete all food logs and history. Your profile will be preserved."
+        confirmText="Delete All"
         cancelText="Cancel"
         destructive={true}
       />
@@ -574,5 +1051,69 @@ const createStyles = (colors: any) =>
     },
     spacer: {
       height: 40,
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: colors.overlay,
+      justifyContent: "center",
+      alignItems: "center",
+      padding: spacing.lg,
+    },
+    apiKeyModalContent: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.xl,
+      padding: spacing.xl,
+      width: "100%",
+      maxWidth: 400,
+      ...shadows.lg,
+    },
+    apiKeyModalTitle: {
+      fontSize: typography.xl,
+      fontFamily: typography.fontBold,
+      color: colors.textPrimary,
+      marginBottom: spacing.xs,
+    },
+    apiKeyModalSubtitle: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontRegular,
+      color: colors.textSecondary,
+      marginBottom: spacing.lg,
+    },
+    apiKeyInput: {
+      backgroundColor: colors.surfaceSecondary,
+      borderRadius: borderRadius.md,
+      padding: spacing.md,
+      fontSize: typography.base,
+      fontFamily: typography.fontRegular,
+      color: colors.textPrimary,
+      marginBottom: spacing.lg,
+    },
+    apiKeyModalButtons: {
+      flexDirection: "row",
+      gap: spacing.sm,
+    },
+    apiKeyModalCancelButton: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      alignItems: "center",
+      borderRadius: borderRadius.md,
+      backgroundColor: colors.surfaceSecondary,
+    },
+    apiKeyModalCancelText: {
+      fontSize: typography.base,
+      fontFamily: typography.fontMedium,
+      color: colors.textSecondary,
+    },
+    apiKeyModalSaveButton: {
+      flex: 1,
+      paddingVertical: spacing.md,
+      alignItems: "center",
+      borderRadius: borderRadius.md,
+      backgroundColor: colors.primary,
+    },
+    apiKeyModalSaveText: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.textInverse,
     },
   });

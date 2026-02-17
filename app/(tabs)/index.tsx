@@ -18,6 +18,7 @@ import { Header } from "../../components/Header";
 import { FoodLogItem } from "../../components/food/FoodLogItem";
 import { FoodItem } from "../../lib/models/food";
 import { useFoodStore } from "../../store/foodStore";
+import { useProfileStore } from "../../store/profileStore";
 import { useTheme } from "../../lib/ThemeContext";
 import { spacing, typography, shadows, borderRadius } from "../../lib/theme";
 
@@ -38,49 +39,66 @@ const MONTH_NAMES_SHORT = [
 ];
 
 const CONFETTI_STORAGE_KEY = "last_confetti_date";
+const CALORIE_BUFFER = 100; // 100 calorie buffer before showing warning for weight loss
 
 export default function HomeScreen() {
-  const {
-    foodItems,
-    isLoading,
-    loadData,
-    getDailyStats,
-    selectedDate,
-  } = useFoodStore();
+  const { foodItems, isLoading, loadData, getDailyStats, selectedDate } =
+    useFoodStore();
+  const { profile, loadProfile } = useProfileStore();
   const { colors } = useTheme();
   const dailyStats = getDailyStats();
   const [showConfetti, setShowConfetti] = useState(false);
+  const [showOvereatingWarning, setShowOvereatingWarning] = useState(false);
   const confettiRef = useRef<ConfettiCannon>(null);
 
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [loadData])
+      loadProfile();
+    }, [loadData, loadProfile])
   );
 
   // Check for goal achievement and trigger confetti
+  // Also check for overeating when goal is to lose weight (with buffer)
   useEffect(() => {
     const checkGoalAchievement = async () => {
-      if (
-        dailyStats.caloriesTotal >= dailyStats.calorieGoal &&
-        dailyStats.calorieGoal > 0
-      ) {
-        const today = new Date().toISOString().split("T")[0];
-        const lastCelebratedDate = await AsyncStorage.getItem(
-          CONFETTI_STORAGE_KEY
-        );
+      // Add small buffer to calorie goal for warning (only trigger warning if exceeding goal + buffer)
+      const calorieGoalWithBuffer = dailyStats.calorieGoal + CALORIE_BUFFER;
+      const isOverCalorie =
+        dailyStats.caloriesTotal >= calorieGoalWithBuffer &&
+        dailyStats.calorieGoal > 0;
 
-        if (lastCelebratedDate !== today) {
-          setShowConfetti(true);
-          await AsyncStorage.setItem(CONFETTI_STORAGE_KEY, today);
-          // Auto-hide confetti after animation
-          setTimeout(() => setShowConfetti(false), 5000);
+      if (isOverCalorie) {
+        // Check if user's goal is to lose weight
+        const isLosingWeight = profile?.weightGoal === "lose";
+
+        if (isLosingWeight) {
+          // Show warning instead of confetti for overeating on weight loss goal
+          setShowOvereatingWarning(true);
+          setShowConfetti(false);
+        } else {
+          // Show confetti for weight maintenance or gain goals
+          const today = new Date().toISOString().split("T")[0];
+          const lastCelebratedDate = await AsyncStorage.getItem(
+            CONFETTI_STORAGE_KEY
+          );
+
+          if (lastCelebratedDate !== today) {
+            setShowConfetti(true);
+            setShowOvereatingWarning(false);
+            await AsyncStorage.setItem(CONFETTI_STORAGE_KEY, today);
+            // Auto-hide confetti after animation
+            setTimeout(() => setShowConfetti(false), 5000);
+          }
         }
+      } else {
+        setShowConfetti(false);
+        setShowOvereatingWarning(false);
       }
     };
 
     checkGoalAchievement();
-  }, [dailyStats.caloriesTotal, dailyStats.calorieGoal]);
+  }, [dailyStats.caloriesTotal, dailyStats.calorieGoal, profile?.weightGoal]);
 
   // Group food items by meal type
   const foodByMealType = useMemo(() => {
@@ -117,6 +135,27 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <StatsCard stats={dailyStats} />
+
+        {/* Overeating warning for weight loss goal */}
+        {showOvereatingWarning && (
+          <View
+            style={[
+              styles.warningBanner,
+              { backgroundColor: colors.error, borderColor: colors.error },
+            ]}
+          >
+            <Ionicons name="warning" size={24} color="#FFFFFF" />
+            <View style={{ marginLeft: spacing.md, flex: 1 }}>
+              <Text style={[styles.warningTitle, { color: "#FFFFFF" }]}>
+                You're over your calorie goal
+              </Text>
+              <Text style={[styles.warningText, { color: "#FFFFFF" }]}>
+                You're aiming to lose weight. Try to stay within your goal for
+                best results.
+              </Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{headerTitle}</Text>
@@ -245,6 +284,25 @@ const createStyles = (colors: any) =>
       alignItems: "center",
       justifyContent: "center",
       ...shadows.lg,
+    },
+    warningBanner: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: spacing.lg,
+      marginHorizontal: spacing.lg,
+      marginBottom: spacing.md,
+      borderRadius: borderRadius.lg,
+      borderWidth: 1,
+      ...shadows.md,
+    },
+    warningTitle: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      marginBottom: spacing.xs,
+    },
+    warningText: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontRegular,
     },
     spacer: {
       height: 100,

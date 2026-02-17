@@ -9,6 +9,8 @@ import {
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useOnboardingStore } from "../../store/onboardingStore";
+import { useProfileStore } from "../../store/profileStore";
+import { useFoodStore } from "../../store/foodStore";
 import { useTheme } from "../../lib/ThemeContext";
 import {
   calculateNutritionGoals,
@@ -24,10 +26,23 @@ import { OnboardingLayout } from "../../components/layout/OnboardingLayout";
 
 export default function SummaryScreen() {
   const {
-    gender, age, heightCm, heightFeet, heightInches, heightUnit,
-    weightKg, weightLbs, weightUnit, targetWeightKg, targetWeightLbs,
-    activityLevel, weightGoal, goalAggressiveness, eatingType
+    gender,
+    age,
+    heightCm,
+    heightFeet,
+    heightInches,
+    heightUnit,
+    weightKg,
+    weightLbs,
+    weightUnit,
+    targetWeightKg,
+    targetWeightLbs,
+    activityLevel,
+    weightGoal,
+    goalAggressiveness,
+    eatingType,
   } = useOnboardingStore();
+  const { completeOnboarding, loadProfile } = useProfileStore();
   const { colors } = useTheme();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -54,13 +69,30 @@ export default function SummaryScreen() {
   const handleComplete = async () => {
     setIsLoading(true);
     try {
+      // First save the profile to database
       await updateUserProfile(profile);
+
+      // Calculate and save goals based on the profile
       await updateDailyGoals({
         calorieGoal: goals.calorieGoal,
         proteinGoal: goals.proteinGoal,
         carbsGoal: goals.carbsGoal,
         fatGoal: goals.fatGoal,
       });
+
+      // Load the profile into the profile store so it has the latest data
+      await loadProfile();
+
+      // Update the profile store which will mark onboarding as complete
+      await completeOnboarding();
+
+      // Explicitly reload food store data from database to ensure fresh state
+      await useFoodStore.getState().loadData();
+
+      // Add a small delay to ensure state is updated before navigation
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Navigate to home
       router.replace("/(tabs)");
     } catch (error) {
       console.error("Error saving profile:", error);
@@ -70,15 +102,11 @@ export default function SummaryScreen() {
   };
 
   const displayHeight =
-    heightUnit === "cm"
-      ? `${heightCm} cm`
-      : `${heightFeet}'${heightInches}"`;
+    heightUnit === "cm" ? `${heightCm} cm` : `${heightFeet}'${heightInches}"`;
   const displayWeight =
     weightUnit === "kg" ? `${weightKg} kg` : `${weightLbs} lbs`;
   const displayTargetWeight =
-    weightUnit === "kg"
-      ? `${targetWeightKg} kg`
-      : `${targetWeightLbs} lbs`;
+    weightUnit === "kg" ? `${targetWeightKg} kg` : `${targetWeightLbs} lbs`;
 
   const styles = createStyles(colors);
 

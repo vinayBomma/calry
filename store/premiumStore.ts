@@ -1,0 +1,431 @@
+import { create } from "zustand";
+import AsyncStorage from "expo-sqlite/kv-store";
+import { GoogleGenAI } from "@google/genai";
+import Constants from "expo-constants";
+import { getDatabase } from "../lib/database";
+import { validateGeminiApiKey, initializeGemini } from "../lib/gemini";
+
+// Get default Gemini API Key from environment variables
+const GEMINI_API_KEY = Constants.expoConfig?.extra?.geminiApiKey || "";
+
+// Constants
+const FREE_AI_MEALS_PER_DAY = 3;
+const FREE_AI_CAMERA_SCANS = 1; // One trial scan for free users (lifetime)
+const TRIAL_DAYS = 3;
+
+export type PremiumTier = "free" | "premium" | "byok";
+export type PurchaseType = "one_time" | "subscription";
+
+interface PremiumState {
+  // Subscription state
+  tier: PremiumTier;
+  purchaseType: PurchaseType | null;
+  expiresAt: number | null; // null for one_time or free
+  trialStartedAt: number | null;
+  isTrialActive: boolean;
+
+  // BYOK state
+  customApiKey: string | null;
+
+  // Usage tracking
+  aiMealsUsedToday: number;
+  usageDate: string; // YYYY-MM-DD format
+  aiCameraScansUsed: number; // Lifetime count for free users
+
+  // Actions
+  loadPremiumState: () => Promise<void>;
+  setPremiumTier: (tier: PremiumTier, purchaseType?: PurchaseType, expiresAt?: number) => Promise<void>;
+  setCustomApiKey: (key: string | null) => Promise<void>;
+  incrementAIUsage: () => Promise<boolean>; // Returns true if allowed, false if limit reached
+  incrementAICameraUsage: () => Promise<boolean>; // Returns true if allowed (premium or trial scan available)
+  resetDailyUsage: () => Promise<void>;
+  startTrial: () => Promise<void>;
+  checkTrialStatus: () => boolean;
+
+  // Computed selectors
+  isPremium: () => boolean;
+  canUseAI: () => boolean;
+  canUseAICamera: () => boolean; // Check if user can use AI camera (premium or has trial left)
+  getRemainingAIMeals: () => number;
+  getRemainingAICameraScans: () => number; // For free users, returns 0 or 1
+  getEffectiveApiKey: () => string | null;
+  getRemainingTrialDays: () => number;
+  getRemainingSubscriptionDays: () => number;
+}
+
+const STORAGE_KEYS = {
+  TIER: "calry_premium_tier",
+  PURCHASE_TYPE: "calry_purchase_type",
+  EXPIRES_AT: "calry_expires_at",
+  TRIAL_STARTED: "calry_trial_started",
+  CUSTOM_API_KEY: "calry_custom_api_key",
+  AI_CAMERA_SCANS: "calry_ai_camera_scans",
+};
+
+const getTodayString = () => new Date().toISOString().split("T")[0];
+
+export const usePremiumStore = create<PremiumState>((set, get) => ({
+  tier: "free",
+  purchaseType: null,
+  expiresAt: null,
+  trialStartedAt: null,
+  isTrialActive: false,
+  customApiKey: null,
+  aiMealsUsedToday: 0,
+  usageDate: getTodayString(),
+  aiCameraScansUsed: 0,
+
+  loadPremiumState: async () => {
+    try {
+      // Load from AsyncStorage
+      const [tier, purchaseType, expiresAt, trialStarted, customApiKey, aiCameraScans] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.TIER),
+        AsyncStorage.getItem(STORAGE_KEYS.PURCHASE_TYPE),
+        AsyncStorage.getItem(STORAGE_KEYS.EXPIRES_AT),
+        AsyncStorage.getItem(STORAGE_KEYS.TRIAL_STARTED),
+        AsyncStorage.getItem(STORAGE_KEYS.CUSTOM_API_KEY),
+        AsyncStorage.getItem(STORAGE_KEYS.AI_CAMERA_SCANS),
+      ]);
+
+      // Load usage from database
+      const db = await getDatabase();
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS ai_usage (
+          id INTEGER PRIMARY KEY DEFAULT 1,
+          count INTEGER NOT NULL DEFAULT 0,
+          date TEXT NOT NULL
+        );
+      `);
+
+      const today = getTodayString();
+      const usage = await db.getFirstAsync<{ count: number; date: string }>(
+        "SELECT count, date FROM ai_usage WHERE id = 1"
+      );
+
+      let aiMealsUsedToday = 0;
+      if (usage) {
+        if (usage.date === today) {
+          aiMealsUsedToday = usage.count;
+        } else {
+          // Reset for new day
+          await db.runAsync(
+            "UPDATE ai_usage SET count = 0, date = ? WHERE id = 1",
+            [today]
+          );
+        }
+      } else {
+        await db.runAsync(
+          "INSERT INTO ai_usage (id, count, date) VALUES (1, 0, ?)",
+          [today]
+        );
+      }
+
+      // Check trial status
+      const trialStartedAt = trialStarted ? parseInt(trialStarted) : null;
+      const isTrialActive = trialStartedAt
+        ? Date.now() - trialStartedAt < TRIAL_DAYS * 24 * 60 * 60 * 1000
+        : false;
+
+      // Check subscription expiry
+      let effectiveTier = (tier as PremiumTier) || "free";
+      const parsedExpiresAt = expiresAt ? parseInt(expiresAt) : null;
+
+      if (effectiveTier === "premium" && purchaseType === "subscription" && parsedExpiresAt) {
+        if (Date.now() > parsedExpiresAt) {
+          effectiveTier = "free";
+          await AsyncStorage.setItem(STORAGE_KEYS.TIER, "free");
+        }
+      }
+
+      set({
+        tier: effectiveTier,
+        purchaseType: purchaseType as PurchaseType | null,
+        expiresAt: parsedExpiresAt,
+        trialStartedAt,
+        isTrialActive,
+        customApiKey,
+        aiMealsUsedToday,
+        usageDate: today,
+        aiCameraScansUsed: aiCameraScans ? parseInt(aiCameraScans) : 0,
+      });
+
+      // Initialize Gemini with custom API key if present
+      if (customApiKey) {
+        initializeGemini(customApiKey);
+      }
+    } catch (error) {
+      console.error("Error loading premium state:", error);
+    }
+  },
+
+  setPremiumTier: async (tier, purchaseType, expiresAt) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.TIER, tier);
+      if (purchaseType) {
+        await AsyncStorage.setItem(STORAGE_KEYS.PURCHASE_TYPE, purchaseType);
+      }
+      if (expiresAt) {
+        await AsyncStorage.setItem(STORAGE_KEYS.EXPIRES_AT, expiresAt.toString());
+      }
+
+      set({
+        tier,
+        purchaseType: purchaseType || null,
+        expiresAt: expiresAt || null,
+      });
+    } catch (error) {
+      console.error("Error setting premium tier:", error);
+    }
+  },
+
+  setCustomApiKey: async (key) => {
+    try {
+      if (key) {
+        // Validate the API key before storing
+        const isValid = await validateGeminiApiKey(key);
+        if (!isValid) {
+          throw new Error("Invalid Gemini API key");
+        }
+
+        // Initialize Gemini with the custom key
+        initializeGemini(key);
+
+        await AsyncStorage.setItem(STORAGE_KEYS.CUSTOM_API_KEY, key);
+        await AsyncStorage.setItem(STORAGE_KEYS.TIER, "byok");
+        set({ customApiKey: key, tier: "byok" });
+      } else {
+        // When removing custom key, revert to free plan
+        await AsyncStorage.removeItem(STORAGE_KEYS.CUSTOM_API_KEY);
+        // Initialize Gemini with default key if available (for remaining AI meals)
+        if (GEMINI_API_KEY) {
+          initializeGemini(GEMINI_API_KEY);
+        }
+        await AsyncStorage.setItem(STORAGE_KEYS.TIER, "free");
+        set({ customApiKey: null, tier: "free" });
+      }
+    } catch (error) {
+      console.error("Error setting custom API key:", error);
+      throw error; // Re-throw so caller can handle
+    }
+  },
+
+  incrementAIUsage: async () => {
+    const { tier, isTrialActive, aiMealsUsedToday, usageDate, customApiKey } = get();
+    const today = getTodayString();
+
+    // Premium users, trial users, and BYOK users have unlimited access
+    if (tier === "premium" || tier === "byok" || isTrialActive || customApiKey) {
+      return true;
+    }
+
+    // Reset count if new day
+    let currentUsage = aiMealsUsedToday;
+    if (usageDate !== today) {
+      currentUsage = 0;
+      set({ usageDate: today, aiMealsUsedToday: 0 });
+    }
+
+    // Check if limit reached
+    if (currentUsage >= FREE_AI_MEALS_PER_DAY) {
+      return false;
+    }
+
+    // Increment usage
+    try {
+      const db = await getDatabase();
+      const newCount = currentUsage + 1;
+      await db.runAsync(
+        "UPDATE ai_usage SET count = ?, date = ? WHERE id = 1",
+        [newCount, today]
+      );
+      set({ aiMealsUsedToday: newCount, usageDate: today });
+      return true;
+    } catch (error) {
+      console.error("Error incrementing AI usage:", error);
+      return false;
+    }
+  },
+
+  resetDailyUsage: async () => {
+    try {
+      const today = getTodayString();
+      const db = await getDatabase();
+      await db.runAsync(
+        "UPDATE ai_usage SET count = 0, date = ? WHERE id = 1",
+        [today]
+      );
+      set({ aiMealsUsedToday: 0, usageDate: today });
+    } catch (error) {
+      console.error("Error resetting daily usage:", error);
+    }
+  },
+
+  incrementAICameraUsage: async () => {
+    const { tier, isTrialActive, aiCameraScansUsed } = get();
+
+    // Premium users and trial users have unlimited AI camera access
+    if (tier === "premium" || isTrialActive) {
+      return true;
+    }
+
+    // Free users get exactly 1 trial scan (lifetime)
+    if (aiCameraScansUsed >= FREE_AI_CAMERA_SCANS) {
+      return false;
+    }
+
+    // Use the trial scan
+    try {
+      const newCount = aiCameraScansUsed + 1;
+      await AsyncStorage.setItem(STORAGE_KEYS.AI_CAMERA_SCANS, newCount.toString());
+      set({ aiCameraScansUsed: newCount });
+      return true;
+    } catch (error) {
+      console.error("Error incrementing AI camera usage:", error);
+      return false;
+    }
+  },
+
+  startTrial: async () => {
+    try {
+      const now = Date.now();
+      await AsyncStorage.setItem(STORAGE_KEYS.TRIAL_STARTED, now.toString());
+      set({ trialStartedAt: now, isTrialActive: true });
+    } catch (error) {
+      console.error("Error starting trial:", error);
+    }
+  },
+
+  checkTrialStatus: () => {
+    const { trialStartedAt } = get();
+    if (!trialStartedAt) return false;
+    return Date.now() - trialStartedAt < TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  },
+
+  // Selectors
+  isPremium: () => {
+    const { tier, isTrialActive } = get();
+    // Only true premium tier and active trial get all features
+    // BYOK mode only gets unlimited AI, not other premium features
+    return tier === "premium" || isTrialActive;
+  },
+
+  canUseAI: () => {
+    const { tier, isTrialActive, aiMealsUsedToday, usageDate, customApiKey } = get();
+    const today = getTodayString();
+
+    if (tier === "premium" || tier === "byok" || isTrialActive || customApiKey) {
+      return true;
+    }
+
+    // Reset if it's a new day
+    let currentUsage = aiMealsUsedToday;
+    if (usageDate !== today) {
+      currentUsage = 0;
+    }
+
+    return currentUsage < FREE_AI_MEALS_PER_DAY;
+  },
+
+  canUseAICamera: () => {
+    const { tier, isTrialActive, aiCameraScansUsed } = get();
+
+    // Premium users and trial users can always use AI camera
+    if (tier === "premium" || isTrialActive) {
+      return true;
+    }
+
+    // Free users only if they haven't used their trial scan
+    return aiCameraScansUsed < FREE_AI_CAMERA_SCANS;
+  },
+
+  getRemainingAIMeals: () => {
+    const { tier, isTrialActive, aiMealsUsedToday, usageDate, customApiKey } = get();
+    const today = getTodayString();
+
+    if (tier === "premium" || tier === "byok" || isTrialActive || customApiKey) {
+      return Infinity;
+    }
+
+    // Reset if it's a new day
+    let currentUsage = aiMealsUsedToday;
+    if (usageDate !== today) {
+      currentUsage = 0;
+    }
+
+    return Math.max(0, FREE_AI_MEALS_PER_DAY - currentUsage);
+  },
+
+  getRemainingAICameraScans: () => {
+    const { tier, isTrialActive, aiCameraScansUsed } = get();
+
+    // Premium and trial users have unlimited
+    if (tier === "premium" || isTrialActive) {
+      return Infinity;
+    }
+
+    // Free users get 1 trial
+    return Math.max(0, FREE_AI_CAMERA_SCANS - aiCameraScansUsed);
+  },
+
+  getEffectiveApiKey: () => {
+    const { customApiKey } = get();
+    return customApiKey;
+  },
+
+  getRemainingTrialDays: () => {
+    const { trialStartedAt, isTrialActive } = get();
+    if (!trialStartedAt || !isTrialActive) return 0;
+
+    const elapsedMs = Date.now() - trialStartedAt;
+    const elapsedDays = Math.floor(elapsedMs / (24 * 60 * 60 * 1000));
+    const remainingDays = Math.max(0, TRIAL_DAYS - elapsedDays);
+    return remainingDays;
+  },
+
+  getRemainingSubscriptionDays: () => {
+    const { expiresAt, purchaseType } = get();
+    // Only subscription purchases have expiry
+    if (!expiresAt || purchaseType !== "subscription") return 0;
+
+    const remainingMs = expiresAt - Date.now();
+    const remainingDays = Math.ceil(remainingMs / (24 * 60 * 60 * 1000));
+    return Math.max(0, remainingDays);
+  },
+}));
+
+// Feature access helpers
+export const PREMIUM_FEATURES = {
+  UNLIMITED_AI: "unlimited_ai",
+  AI_CAMERA: "ai_camera",
+  BACKUP: "backup",
+  RESTORE: "restore",
+  FAVOURITES: "favourites",
+  FULL_STATS: "full_stats",
+  FULL_HISTORY: "full_history",
+} as const;
+
+export type PremiumFeature = (typeof PREMIUM_FEATURES)[keyof typeof PREMIUM_FEATURES];
+
+export const canAccessFeature = (feature: PremiumFeature): boolean => {
+  const state = usePremiumStore.getState();
+  const isPremium = state.isPremium();
+  const { tier } = state;
+
+  switch (feature) {
+    case PREMIUM_FEATURES.UNLIMITED_AI:
+      // BYOK and Premium both allow unlimited AI
+      return isPremium || tier === "byok";
+    case PREMIUM_FEATURES.AI_CAMERA:
+      // Only Premium users get AI camera (free users get 1 trial via canUseAICamera)
+      return isPremium;
+    case PREMIUM_FEATURES.BACKUP:
+    case PREMIUM_FEATURES.RESTORE:
+    case PREMIUM_FEATURES.FAVOURITES:
+    case PREMIUM_FEATURES.FULL_STATS:
+    case PREMIUM_FEATURES.FULL_HISTORY:
+      // Only true Premium tier (not BYOK) gets these features
+      return isPremium;
+    default:
+      return false;
+  }
+};

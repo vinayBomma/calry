@@ -1,8 +1,8 @@
 export default {
   expo: {
-    name: "SnackTrack",
-    slug: "snacktrack",
-    version: "1.0.2",
+    name: "Calry",
+    slug: "calry",
+    version: "1.1.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
     userInterfaceStyle: "light",
@@ -22,16 +22,26 @@ export default {
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
-      package: "com.vinaybomma.snacktrack",
+      package: "com.vinaybomma.calry",
     },
-    plugins: ["expo-sqlite", "expo-localization"],
+    plugins: [
+      "expo-sqlite",
+      "expo-localization",
+      [
+        "expo-camera",
+        {
+          cameraPermission: "Allow Calry to access your camera for food scanning.",
+        },
+      ],
+    ],
     extra: {
       eas: {
-        projectId: "30280021-3570-468a-9c2f-6fea51571b9f",
+        projectId: "5fd764ee-3278-4553-9950-0fd8a44e855a",
       },
       geminiApiKey: process.env.EXPO_PUBLIC_GEMINI_API_KEY,
       posthogApiKey: process.env.EXPO_PUBLIC_POSTHOG_API_KEY,
       posthogHost: process.env.EXPO_PUBLIC_POSTHOG_HOST,
+      revenueCatAndroidKey: process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY,
     },
     owner: "vinaybomma",
   },

@@ -1,60 +1,63 @@
-# 🍎 SnackTrack - AI Calorie Counter
+# Calry - AI Calorie Counter
 
-SnackTrack is a privacy-first, AI-powered nutrition tracker built with React Native and Expo. It allows you to log meals using natural language, providing instant nutritional insights while keeping your data securely on your device.
+![Play Store Status](https://img.shields.io/badge/Google_Play-In_Review-orange+?style=flat&logo=google-play&logoColor=white)
 
----
+Calry is a privacy-first, AI-powered nutrition tracker built with React Native and Expo. It allows you to log meals using natural language, providing instant nutritional insights while keeping your data securely on your device.
 
-## ✨ Features
+## Features
 
-- **🤖 AI Meal Logging**: Describe what you ate in plain English (or other languages!) and let Gemini 1.5 Flash calculate the macros.
-- **⭐ Favourites**: Save your frequent meals for quick, one-tap logging.
-- **📊 Interactive Stats**: Visualize your weekly progress with bar charts and real-time calorie rings.
-- **🎯 Smart Goals**: Set calorie and macro goals. The app can auto-recalculate them based on your profile stats (TDEE).
-- **🔒 Privacy First**: All your data is stored locally in a SQLite database. No account required.
-- **🌓 Dark Mode**: Fully themed for both light and dark environments.
-- **🎉 Celebrations**: Get a confetti surprise when you hit your daily goals!
+- **AI Meal Logging**: Describe what you ate in plain English and let Gemini 1.5 Flash calculate the macros.
+- **Favourites**: Save your frequent meals for quick, one-tap logging.
+- **Interactive Stats**: Visualize your weekly progress with bar charts and real-time calorie rings.
+- **Smart Goals**: Set calorie and macro goals. The app can auto-recalculate them based on your profile stats (TDEE).
+- **Privacy First**: All your data is stored locally in a SQLite database. No account required.
+- **Dark Mode**: Fully themed for both light and dark environments.
+- **Celebrations**: Get a confetti surprise when you hit your daily goals!
 
----
-
-## 🛠️ Tech Stack
+## Tech Stack
 
 - **Framework**: [Expo](https://expo.dev/) (SDK 54) / React Native
-- **AI Engine**: [Google Gemini 1.5 Flash](https://ai.google.dev/)
+- **AI Engine**: [Google Gemini](https://ai.google.dev/)
 - **State Management**: [Zustand](https://github.com/pmndrs/zustand)
 - **Database**: [expo-sqlite](https://docs.expo.dev/versions/latest/sdk/sqlite/)
-- **Navigation**: [Expo Router](https://docs.expo.dev/router/introduction/) (File-based)
+- **Navigation**: [Expo Router](https://docs.expo.dev/router/introduction/)
 - **Styling**: Custom Theme System with `ThemeContext`
 
----
-
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
+
 - Node.js (v18 or newer)
 - Expo Go app on your mobile device (for testing)
 
 ### Installation
+
 1. Clone the repository:
+
    ```bash
-   git clone <your-repo-url>
-   cd snacktrack
+   git clone https://github.com/your-username/calry.git
+   cd calry
    ```
+
 2. Install dependencies:
+
    ```bash
    npm install
    ```
+
 3. Set up your Gemini API Key:
-   - Create a `.env` file (or update `lib/gemini.ts`) with your `GEMINI_API_KEY`.
+   - Create a `.env` file in the root directory.
+   - Add your API key: `GEMINI_API_KEY=your_api_key_here`
 
 ### Running the App
+
 ```bash
 npx expo start
 ```
+
 Scan the QR code with your phone (using Expo Go) to see it in action.
 
----
-
-## 📂 Project Structure
+## Project Structure
 
 ```text
 ├── app/               # Expo Router screens (Tabs and Modals)
@@ -70,13 +73,11 @@ Scan the QR code with your phone (using Expo Go) to see it in action.
 └── store/             # Zustand state stores (food, goals, theme)
 ```
 
----
+## AI Safety & Limits
 
-## 🛡️ AI Safety & Limits
 - **Guardrails**: The AI is programmed to only answer nutrition-related queries.
 - **Limits**: Text inputs are capped at 200 characters to prevent token overuse and ensure focus.
 
----
+## License
 
-## 📜 License
-Private Project. All rights reserved.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

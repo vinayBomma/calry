@@ -10,10 +10,16 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useIsFocused } from "@react-navigation/native";
+import { router } from "expo-router";
 import { useTheme } from "../../lib/ThemeContext";
 import { getDatabase } from "../../lib/database";
 import { useProfileStore } from "../../store/profileStore";
 import { useFoodStore } from "../../store/foodStore";
+import {
+  usePremiumStore,
+  canAccessFeature,
+  PREMIUM_FEATURES,
+} from "../../store/premiumStore";
 import { CalorieChart } from "../../components/stats/CalorieChart";
 import { spacing, typography, borderRadius } from "../../lib/theme";
 
@@ -35,11 +41,19 @@ export default function StatsScreen() {
   const { colors } = useTheme();
   const { profile } = useProfileStore();
   const { goals } = useFoodStore();
+  const isPremium = usePremiumStore((state) => state.isPremium());
   const [period, setPeriod] = useState<Period>("weekly");
   const [stats, setStats] = useState<DayStats[]>([]);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [avgCalories, setAvgCalories] = useState(0);
+  const [totalCalories, setTotalCalories] = useState(0);
+  const [bestDay, setBestDay] = useState(0);
+  const [totalMeals, setTotalMeals] = useState(0);
+  const [daysLogged, setDaysLogged] = useState(0);
+  const [avgProtein, setAvgProtein] = useState(0);
+  const [avgCarbs, setAvgCarbs] = useState(0);
+  const [avgFat, setAvgFat] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
   const isGainingWeight = profile?.weightGoal === "gain";
@@ -79,6 +93,22 @@ export default function StatsScreen() {
         [startDate.getTime(), today.getTime()]
       );
 
+      // Fetch detailed macros and count for this period
+      const macroData = await db.getAllAsync<{
+        totalProtein: number;
+        totalCarbs: number;
+        totalFat: number;
+        mealCount: number;
+      }>(
+        `SELECT SUM(protein) as totalProtein, 
+                SUM(carbs) as totalCarbs, 
+                SUM(fat) as totalFat,
+                COUNT(*) as mealCount
+         FROM food_items 
+         WHERE timestamp >= ? AND timestamp <= ?`,
+        [startDate.getTime(), today.getTime()]
+      );
+
       const dailyCalories: Record<string, number> = {};
       dailyData.forEach((row) => {
         dailyCalories[row.dateKey] = row.totalCalories;
@@ -94,6 +124,7 @@ export default function StatsScreen() {
       const statsArray: DayStats[] = [];
       let totalCalories = 0;
       let daysWithData = 0;
+      let bestDay = 0;
 
       // For monthly stats, iterate through all days of current month
       const daysToShow = period === "weekly" ? days : today.getDate();
@@ -119,10 +150,33 @@ export default function StatsScreen() {
         if (calories > 0) {
           totalCalories += calories;
           daysWithData++;
+          bestDay = Math.max(bestDay, calories);
         }
       }
 
+      // Calculate macro averages
+      const mealData = macroData[0];
+      const avgProteinVal =
+        daysWithData > 0
+          ? Math.round((mealData?.totalProtein || 0) / daysWithData)
+          : 0;
+      const avgCarbsVal =
+        daysWithData > 0
+          ? Math.round((mealData?.totalCarbs || 0) / daysWithData)
+          : 0;
+      const avgFatVal =
+        daysWithData > 0
+          ? Math.round((mealData?.totalFat || 0) / daysWithData)
+          : 0;
+
       setStats(statsArray);
+      setTotalCalories(totalCalories);
+      setBestDay(bestDay);
+      setTotalMeals(mealData?.mealCount || 0);
+      setDaysLogged(daysWithData);
+      setAvgProtein(avgProteinVal);
+      setAvgCarbs(avgCarbsVal);
+      setAvgFat(avgFatVal);
       setAvgCalories(
         daysWithData > 0 ? Math.round(totalCalories / daysWithData) : 0
       );
@@ -278,17 +332,29 @@ export default function StatsScreen() {
           style={[
             styles.toggleButton,
             period === "monthly" && styles.toggleButtonActive,
+            !isPremium && styles.toggleButtonDisabled,
           ]}
-          onPress={() => setPeriod("monthly")}
+          onPress={() => {
+            if (!isPremium) {
+              router.push("/upgrade");
+            } else {
+              setPeriod("monthly");
+            }
+          }}
         >
-          <Text
-            style={[
-              styles.toggleText,
-              period === "monthly" && styles.toggleTextActive,
-            ]}
-          >
-            Monthly
-          </Text>
+          <View style={styles.monthlyToggleContent}>
+            <Text
+              style={[
+                styles.toggleText,
+                period === "monthly" && styles.toggleTextActive,
+              ]}
+            >
+              Monthly
+            </Text>
+            {!isPremium && (
+              <Ionicons name="lock-closed" size={14} color={colors.textMuted} />
+            )}
+          </View>
         </TouchableOpacity>
       </View>
 
@@ -298,36 +364,85 @@ export default function StatsScreen() {
       >
         {/* Stats Cards */}
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <View
-              style={[
-                styles.statIconContainer,
-                { backgroundColor: colors.primaryBg },
-              ]}
-            >
-              <Ionicons name="flame" size={24} color={colors.primary} />
-            </View>
-            <Text style={styles.statValue}>{currentStreak}</Text>
-            <Text style={styles.statLabel}>Current Streak</Text>
-          </View>
-          <View style={styles.statCard}>
-            <View
-              style={[styles.statIconContainer, { backgroundColor: "#FEF3C7" }]}
-            >
-              <Ionicons name="trophy" size={24} color="#F59E0B" />
-            </View>
-            <Text style={styles.statValue}>{bestStreak}</Text>
-            <Text style={styles.statLabel}>Best Streak</Text>
-          </View>
-          <View style={styles.statCard}>
-            <View
-              style={[styles.statIconContainer, { backgroundColor: "#EDE9FE" }]}
-            >
-              <Ionicons name="analytics" size={24} color="#8B5CF6" />
-            </View>
-            <Text style={styles.statValue}>{avgCalories}</Text>
-            <Text style={styles.statLabel}>Avg. Calories</Text>
-          </View>
+          {period === "weekly" ? (
+            <>
+              <View style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statIconContainer,
+                    { backgroundColor: colors.primaryBg },
+                  ]}
+                >
+                  <Ionicons name="flame" size={24} color={colors.primary} />
+                </View>
+                <Text style={styles.statValue}>{currentStreak}</Text>
+                <Text style={styles.statLabel}>Current Streak</Text>
+              </View>
+              <View style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statIconContainer,
+                    { backgroundColor: "#FEF3C7" },
+                  ]}
+                >
+                  <Ionicons name="trophy" size={24} color="#F59E0B" />
+                </View>
+                <Text style={styles.statValue}>{bestStreak}</Text>
+                <Text style={styles.statLabel}>Best Streak</Text>
+              </View>
+              <View style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statIconContainer,
+                    { backgroundColor: "#EDE9FE" },
+                  ]}
+                >
+                  <Ionicons name="analytics" size={24} color="#8B5CF6" />
+                </View>
+                <Text style={styles.statValue}>{avgCalories}</Text>
+                <Text style={styles.statLabel}>Avg. Calories</Text>
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statIconContainer,
+                    { backgroundColor: colors.primaryBg },
+                  ]}
+                >
+                  <Ionicons name="flame" size={24} color={colors.primary} />
+                </View>
+                <Text style={styles.statValue}>{totalCalories}</Text>
+                <Text style={styles.statLabel}>Total Calories</Text>
+              </View>
+              <View style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statIconContainer,
+                    { backgroundColor: "#FEF3C7" },
+                  ]}
+                >
+                  <Ionicons name="star" size={24} color="#F59E0B" />
+                </View>
+                <Text style={styles.statValue}>{bestDay}</Text>
+                <Text style={styles.statLabel}>Best Day</Text>
+              </View>
+              <View style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statIconContainer,
+                    { backgroundColor: "#EDE9FE" },
+                  ]}
+                >
+                  <Ionicons name="analytics" size={24} color="#8B5CF6" />
+                </View>
+                <Text style={styles.statValue}>{avgCalories}</Text>
+                <Text style={styles.statLabel}>Avg. Daily</Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* Chart */}
@@ -366,6 +481,43 @@ export default function StatsScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Additional Stats Card - Monthly Only */}
+        {period === "monthly" && (
+          <>
+            <View style={{ marginTop: spacing.xl }} />
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryTitle}>Additional Stats</Text>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Total Meals Logged</Text>
+                <Text style={styles.summaryValue}>{totalMeals}</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Days with Entries</Text>
+                <Text style={styles.summaryValue}>{daysLogged}</Text>
+              </View>
+            </View>
+
+            <View style={{ marginTop: spacing.lg }} />
+
+            {/* Macronutrients Card - Monthly Only */}
+            <View style={styles.summaryCard}>
+              <Text style={styles.summaryTitle}>Daily Average Macros</Text>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Protein</Text>
+                <Text style={styles.summaryValue}>{avgProtein}g</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Carbs</Text>
+                <Text style={styles.summaryValue}>{avgCarbs}g</Text>
+              </View>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Fat</Text>
+                <Text style={styles.summaryValue}>{avgFat}g</Text>
+              </View>
+            </View>
+          </>
+        )}
 
         <View style={styles.spacer} />
       </ScrollView>
@@ -411,6 +563,14 @@ const createStyles = (colors: any) =>
     },
     toggleButtonActive: {
       backgroundColor: colors.primary,
+    },
+    toggleButtonDisabled: {
+      opacity: 0.6,
+    },
+    monthlyToggleContent: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
     },
     toggleText: {
       fontSize: typography.sm,

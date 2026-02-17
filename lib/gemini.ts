@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import Constants from "expo-constants";
 
 // Get Gemini API Key from environment variables
@@ -10,15 +10,15 @@ if (!GEMINI_API_KEY) {
 }
 
 // Initialize Gemini client
-let genAI: GoogleGenerativeAI | null = GEMINI_API_KEY
-  ? new GoogleGenerativeAI(GEMINI_API_KEY)
+let genAI: GoogleGenAI | null = GEMINI_API_KEY
+  ? new GoogleGenAI({ apiKey: GEMINI_API_KEY })
   : null;
 
 /**
  * Initialize the Gemini client with API key
  */
 export const initializeGemini = (apiKey: string) => {
-  genAI = new GoogleGenerativeAI(apiKey);
+  genAI = new GoogleGenAI({ apiKey });
   return genAI;
 };
 
@@ -29,7 +29,7 @@ export const isGeminiInitialized = () => genAI !== null;
 
 /**
  * Get nutrition information for a food item using Gemini
- * Uses gemini-1.5-flash for fast, low-token responses
+ * Uses gemma-3-27b-it for text-based nutrition estimation
  */
 export const getFoodNutritionInfo = async (
   foodDescription: string
@@ -55,15 +55,6 @@ export const getFoodNutritionInfo = async (
   }
 
   try {
-    // Use Gemma 27B for nutrition estimation
-    const model = genAI.getGenerativeModel({
-      model: "gemma-3-27b-it",
-      generationConfig: {
-        temperature: 0.3, // Slightly higher for better reasoning
-        maxOutputTokens: 256, // More room for reasoning
-      },
-    });
-
     const prompt = `You are a nutrition expert. Analyze the following food description and provide accurate nutritional estimates.
 
 Food description: "${foodDescription}"
@@ -93,9 +84,16 @@ OR if invalid:
 
 Important: All nutrition numbers must be greater than 0.`;
 
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const result = await genAI.models.generateContent({
+      model: "gemma-3-27b-it",
+      contents: prompt,
+      config: {
+        temperature: 0.3,
+        maxOutputTokens: 256,
+      },
+    });
+
+    const text = result.text || "";
 
     // Extract JSON from response (handle potential markdown code blocks)
     let jsonStr = text;
@@ -129,7 +127,7 @@ Important: All nutrition numbers must be greater than 0.`;
     // If we got 0 calories, something went wrong - retry with simpler prompt
     if (calories === 0) {
       console.log("Got 0 calories, retrying with fallback prompt...");
-      return await getFoodNutritionFallback(foodDescription, model);
+      return await getFoodNutritionFallback(foodDescription);
     }
 
     return {
@@ -145,8 +143,7 @@ Important: All nutrition numbers must be greater than 0.`;
     // Try fallback on error
     if (genAI) {
       try {
-        const model = genAI.getGenerativeModel({ model: "gemma-3-27b-it" });
-        return await getFoodNutritionFallback(foodDescription, model);
+        return await getFoodNutritionFallback(foodDescription);
       } catch (fallbackError) {
         console.error("Fallback also failed:", fallbackError);
       }
@@ -167,8 +164,7 @@ Important: All nutrition numbers must be greater than 0.`;
  * Fallback function with simpler prompt for when main prompt fails
  */
 async function getFoodNutritionFallback(
-  foodDescription: string,
-  model: any
+  foodDescription: string
 ): Promise<{
   name: string;
   calories: number;
@@ -178,6 +174,10 @@ async function getFoodNutritionFallback(
   success: boolean;
   error?: string;
 }> {
+  if (!genAI) {
+    return getFallbackByHeuristics(foodDescription);
+  }
+
   try {
     const simplePrompt = `What is the approximate calorie and macro content of "${foodDescription}"?
 
@@ -189,9 +189,16 @@ Think step by step:
 Reply ONLY with JSON: {"name":"food name","calories":X,"protein":X,"carbs":X,"fat":X}
 All values must be positive numbers. Calories should be at least 50.`;
 
-    const result = await model.generateContent(simplePrompt);
-    const text = result.response.text();
+    const result = await genAI.models.generateContent({
+      model: "gemma-3-27b-it",
+      contents: simplePrompt,
+      config: {
+        temperature: 0.3,
+        maxOutputTokens: 256,
+      },
+    });
 
+    const text = result.text || "";
     const jsonMatch = text.match(/\{[\s\S]*?\}/);
     if (jsonMatch) {
       const data = JSON.parse(jsonMatch[0]);
@@ -207,43 +214,197 @@ All values must be positive numbers. Calories should be at least 50.`;
     throw new Error("No JSON found in response");
   } catch (error) {
     console.error("Fallback parsing failed:", error);
-    // Return sensible defaults based on food type hints
-    const lowerFood = foodDescription.toLowerCase();
-
-    // Simple heuristics for common food types
-    if (lowerFood.includes("rice") || lowerFood.includes("biryani") || lowerFood.includes("pulao")) {
-      return { name: foodDescription, calories: 350, protein: 8, carbs: 60, fat: 8, success: true };
-    }
-    if (lowerFood.includes("chicken") || lowerFood.includes("meat") || lowerFood.includes("fish")) {
-      return { name: foodDescription, calories: 300, protein: 25, carbs: 10, fat: 15, success: true };
-    }
-    if (lowerFood.includes("salad") || lowerFood.includes("vegetable")) {
-      return { name: foodDescription, calories: 150, protein: 5, carbs: 20, fat: 5, success: true };
-    }
-    if (lowerFood.includes("bread") || lowerFood.includes("roti") || lowerFood.includes("chapati") || lowerFood.includes("naan")) {
-      return { name: foodDescription, calories: 250, protein: 8, carbs: 45, fat: 5, success: true };
-    }
-    if (lowerFood.includes("dal") || lowerFood.includes("lentil") || lowerFood.includes("beans")) {
-      return { name: foodDescription, calories: 200, protein: 12, carbs: 30, fat: 5, success: true };
-    }
-    if (lowerFood.includes("egg")) {
-      return { name: foodDescription, calories: 180, protein: 14, carbs: 2, fat: 12, success: true };
-    }
-    if (lowerFood.includes("milk") || lowerFood.includes("lassi") || lowerFood.includes("chai")) {
-      return { name: foodDescription, calories: 150, protein: 6, carbs: 15, fat: 6, success: true };
-    }
-    if (lowerFood.includes("fruit") || lowerFood.includes("apple") || lowerFood.includes("banana")) {
-      return { name: foodDescription, calories: 100, protein: 1, carbs: 25, fat: 0, success: true };
-    }
-
-    // Generic fallback
-    return {
-      name: foodDescription,
-      calories: 250,
-      protein: 10,
-      carbs: 30,
-      fat: 10,
-      success: true,
-    };
+    return getFallbackByHeuristics(foodDescription);
   }
 }
+
+/**
+ * Get fallback nutrition by heuristics based on common food types
+ */
+function getFallbackByHeuristics(foodDescription: string): {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  success: boolean;
+} {
+  const lowerFood = foodDescription.toLowerCase();
+
+  // Simple heuristics for common food types
+  if (lowerFood.includes("rice") || lowerFood.includes("biryani") || lowerFood.includes("pulao")) {
+    return { name: foodDescription, calories: 350, protein: 8, carbs: 60, fat: 8, success: true };
+  }
+  if (lowerFood.includes("chicken") || lowerFood.includes("meat") || lowerFood.includes("fish")) {
+    return { name: foodDescription, calories: 300, protein: 25, carbs: 10, fat: 15, success: true };
+  }
+  if (lowerFood.includes("salad") || lowerFood.includes("vegetable")) {
+    return { name: foodDescription, calories: 150, protein: 5, carbs: 20, fat: 5, success: true };
+  }
+  if (lowerFood.includes("bread") || lowerFood.includes("roti") || lowerFood.includes("chapati") || lowerFood.includes("naan")) {
+    return { name: foodDescription, calories: 250, protein: 8, carbs: 45, fat: 5, success: true };
+  }
+  if (lowerFood.includes("dal") || lowerFood.includes("lentil") || lowerFood.includes("beans")) {
+    return { name: foodDescription, calories: 200, protein: 12, carbs: 30, fat: 5, success: true };
+  }
+  if (lowerFood.includes("egg")) {
+    return { name: foodDescription, calories: 180, protein: 14, carbs: 2, fat: 12, success: true };
+  }
+  if (lowerFood.includes("milk") || lowerFood.includes("lassi") || lowerFood.includes("chai")) {
+    return { name: foodDescription, calories: 150, protein: 6, carbs: 15, fat: 6, success: true };
+  }
+  if (lowerFood.includes("fruit") || lowerFood.includes("apple") || lowerFood.includes("banana")) {
+    return { name: foodDescription, calories: 100, protein: 1, carbs: 25, fat: 0, success: true };
+  }
+
+  // Generic fallback
+  return {
+    name: foodDescription,
+    calories: 250,
+    protein: 10,
+    carbs: 30,
+    fat: 10,
+    success: true,
+  };
+}
+
+/**
+ * Analyze food from an image using Gemini 2.5 Flash Lite (Premium feature)
+ * Returns list of identified foods with estimated nutrition
+ */
+export const analyzeFoodImage = async (
+  imageBase64: string,
+  mimeType: string = "image/jpeg"
+): Promise<{
+  foods: Array<{
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+    weight?: number;
+  }>;
+  success: boolean;
+  error?: string;
+}> => {
+  if (!genAI) {
+    return {
+      foods: [],
+      success: false,
+      error: "Gemini not initialized. Please provide API key first.",
+    };
+  }
+
+  try {
+    const prompt = `You are a nutrition expert analyzing a food image. Identify all visible food items and estimate their nutritional content.
+
+Instructions:
+1. Identify each distinct food item in the image
+2. Estimate the portion size/weight in grams
+3. Calculate calories, protein, carbs, and fat for each item
+4. If you cannot identify food in the image, return an error
+
+Respond with ONLY this JSON format, no other text:
+{
+  "foods": [
+    {"name": "food name", "weight": grams, "calories": number, "protein": number, "carbs": number, "fat": number}
+  ]
+}
+
+If no food is visible or image is unclear:
+{"error": "No food detected", "foods": []}`;
+
+    const result = await genAI.models.generateContent({
+      model: "gemini-2.5-flash-lite",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType,
+                data: imageBase64,
+              },
+            },
+          ],
+        },
+      ],
+      config: {
+        temperature: 0.3,
+        maxOutputTokens: 512,
+      },
+    });
+
+    const text = result.text || "";
+
+    // Extract JSON from response
+    let jsonStr = text;
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      jsonStr = jsonMatch[0];
+    }
+
+    const data = JSON.parse(jsonStr);
+
+    if (data.error) {
+      return {
+        foods: [],
+        success: false,
+        error: data.error,
+      };
+    }
+
+    // Validate and clean up foods array
+    const foods = (data.foods || []).map((food: any) => ({
+      name: food.name || "Unknown food",
+      calories: Math.round(food.calories) || 100,
+      protein: Math.round(food.protein) || 5,
+      carbs: Math.round(food.carbs) || 15,
+      fat: Math.round(food.fat) || 5,
+      weight: food.weight ? Math.round(food.weight) : undefined,
+    }));
+
+    return {
+      foods,
+      success: foods.length > 0,
+      error: foods.length === 0 ? "No food items detected" : undefined,
+    };
+  } catch (error) {
+    console.error("Error analyzing food image:", error);
+    return {
+      foods: [],
+      success: false,
+      error: `Failed to analyze image: ${error}`,
+    };
+  }
+};
+
+/**
+ * Validate a Gemini API key by making a test API call
+ * Returns true if valid, false otherwise
+ */
+export const validateGeminiApiKey = async (apiKey: string): Promise<boolean> => {
+  if (!apiKey || apiKey.trim().length === 0) {
+    return false;
+  }
+
+  try {
+    const testClient = new GoogleGenAI({ apiKey });
+
+    // Make a simple test call
+    const result = await testClient.models.generateContent({
+      model: "gemma-3-27b-it",
+      contents: "What is 2+2? Reply with just the number.",
+      config: {
+        maxOutputTokens: 10,
+      },
+    });
+
+    // If we got a response, the key is valid
+    return (result.text || "").length > 0;
+  } catch (error) {
+    console.error("API key validation failed:", error);
+    return false;
+  }
+};

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -20,6 +20,7 @@ import { usePostHog } from "posthog-react-native";
 import { FoodItem } from "../lib/models/food";
 import { getFoodNutritionInfo } from "../lib/gemini";
 import { useFoodStore } from "../store/foodStore";
+import { usePremiumStore } from "../store/premiumStore";
 import { useTheme } from "../lib/ThemeContext";
 import { spacing, typography, shadows, borderRadius } from "../lib/theme";
 import {
@@ -29,10 +30,18 @@ import {
 } from "../lib/hooks/useMealConfig";
 import { AlertModal } from "../components/modals/AlertModal";
 
-type Tab = "ai" | "favourites";
+type Tab = "ai" | "scan" | "favourites" | "manual";
 
 export default function AddMealScreen() {
   const { addFoodItem, favourites, selectedDate } = useFoodStore();
+  const {
+    canUseAI,
+    getRemainingAIMeals,
+    incrementAIUsage,
+    isPremium,
+    loadPremiumState,
+    tier,
+  } = usePremiumStore();
   const { colors } = useTheme();
   const posthog = usePostHog();
   const insets = useSafeAreaInsets();
@@ -42,6 +51,11 @@ export default function AddMealScreen() {
   );
   const [description, setDescription] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  // Manual entry state
+  const [manualCalories, setManualCalories] = useState("200");
+  const [manualProtein, setManualProtein] = useState("10");
+  const [manualCarbs, setManualCarbs] = useState("30");
+  const [manualFat, setManualFat] = useState("10");
   const [alertConfig, setAlertConfig] = useState<{
     visible: boolean;
     title: string;
@@ -53,6 +67,13 @@ export default function AddMealScreen() {
     message: "",
     type: "info",
   });
+
+  // Load premium state on mount
+  useEffect(() => {
+    loadPremiumState();
+  }, []);
+
+  const remainingMeals = getRemainingAIMeals();
 
   const showAlert = (
     title: string,
@@ -87,9 +108,34 @@ export default function AddMealScreen() {
       return;
     }
 
+    // Check AI usage limits - if limit reached, show manual entry option instead of redirecting
+    if (!canUseAI()) {
+      // Show manual entry option
+      setActiveTab("manual");
+      showAlert(
+        "AI Limit Reached",
+        "You've used your daily AI meals. You can still add meals manually below.",
+        "info"
+      );
+      return;
+    }
+
     setIsAnalyzing(true);
 
     try {
+      // Increment usage before making the call
+      const allowed = await incrementAIUsage();
+      if (!allowed) {
+        // Limit just reached, show manual entry option
+        setActiveTab("manual");
+        showAlert(
+          "AI Limit Reached",
+          "You've used your daily AI meals. You can still add meals manually below.",
+          "info"
+        );
+        return;
+      }
+
       // Get nutrition info from Gemini
       const nutritionInfo = await getFoodNutritionInfo(description);
       const timestamp = getTimestampForSelectedDate();
@@ -157,6 +203,49 @@ export default function AddMealScreen() {
       console.error("Error adding favourite meal:", error);
       posthog?.captureException(error);
       showAlert("Error", "Failed to add favourite meal.", "error");
+    }
+  };
+
+  const handleAddManualMeal = async () => {
+    if (!description.trim()) {
+      showAlert("Error", "Please enter a meal name.", "error");
+      return;
+    }
+
+    try {
+      const calories = parseInt(manualCalories) || 200;
+      const protein = parseInt(manualProtein) || 10;
+      const carbs = parseInt(manualCarbs) || 30;
+      const fat = parseInt(manualFat) || 10;
+
+      const timestamp = getTimestampForSelectedDate();
+      const newFoodItem: FoodItem = {
+        id: Date.now().toString(),
+        name: description.trim(),
+        description: "Manually entered",
+        calories,
+        protein,
+        carbs,
+        fat,
+        timestamp: timestamp,
+        mealType: selectedMealType,
+      };
+
+      await addFoodItem(newFoodItem);
+
+      // Track event
+      posthog?.capture("meal_added", {
+        meal_type: selectedMealType,
+        calories: newFoodItem.calories,
+        is_manual: true,
+        is_ai: false,
+      });
+
+      router.back();
+    } catch (error) {
+      console.error("Error adding manual meal:", error);
+      posthog?.captureException(error);
+      showAlert("Error", "Failed to add meal.", "error");
     }
   };
 
@@ -236,6 +325,26 @@ export default function AddMealScreen() {
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
+              style={[styles.tab, activeTab === "scan" && styles.tabActive]}
+              onPress={() => router.push("/scan")}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Ionicons
+                  name="scan-outline"
+                  size={16}
+                  color={activeTab === "scan" ? colors.primary : colors.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === "scan" && styles.tabTextActive,
+                  ]}
+                >
+                  Scan
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
               style={[
                 styles.tab,
                 activeTab === "favourites" && styles.tabActive,
@@ -249,6 +358,19 @@ export default function AddMealScreen() {
                 ]}
               >
                 Favourites
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.tab, activeTab === "manual" && styles.tabActive]}
+              onPress={() => setActiveTab("manual")}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  activeTab === "manual" && styles.tabTextActive,
+                ]}
+              >
+                Manual
               </Text>
             </TouchableOpacity>
           </View>
@@ -288,11 +410,41 @@ export default function AddMealScreen() {
               <View style={styles.tipContainer}>
                 <Ionicons name="bulb-outline" size={18} color="#FF9800" />
                 <Text style={styles.tipText}>
-                  Tip: Include portions and cooking methods for better estimates
+                  Tip: Include portions and cooking methods for better
+                  estimates. You can describe meals in your local language too!
                 </Text>
               </View>
+
+              {/* AI Usage Indicator for free users (not for BYOK) */}
+              {!isPremium() && tier !== "byok" && (
+                <TouchableOpacity
+                  style={styles.usageContainer}
+                  onPress={() => router.push("/upgrade")}
+                >
+                  <View style={styles.usageInfo}>
+                    <Ionicons
+                      name="sparkles"
+                      size={16}
+                      color={remainingMeals > 0 ? colors.primary : colors.error}
+                    />
+                    <Text
+                      style={[
+                        styles.usageText,
+                        remainingMeals === 0 && { color: colors.error },
+                      ]}
+                    >
+                      {remainingMeals > 0
+                        ? `${remainingMeals} free AI meal${
+                            remainingMeals !== 1 ? "s" : ""
+                          } left today`
+                        : "Daily limit reached"}
+                    </Text>
+                  </View>
+                  <Text style={styles.upgradeLink}>Upgrade →</Text>
+                </TouchableOpacity>
+              )}
             </View>
-          ) : (
+          ) : activeTab === "favourites" ? (
             /* Favourites Section */
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Your Favourites</Text>
@@ -336,11 +488,86 @@ export default function AddMealScreen() {
                 </View>
               )}
             </View>
+          ) : (
+            /* Manual Entry Section */
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Add Meal Manually</Text>
+              <Text style={styles.sectionSubtitle}>
+                No problem! Enter the meal details below.
+              </Text>
+
+              {/* Meal Name Input */}
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Meal Name</Text>
+                <TextInput
+                  style={styles.textInput}
+                  placeholder="e.g., Chicken Rice"
+                  placeholderTextColor={colors.textMuted}
+                  value={description}
+                  onChangeText={setDescription}
+                />
+              </View>
+
+              {/* Nutrition Info Inputs */}
+              <Text style={styles.inputLabel}>
+                Nutrition Info (per serving)
+              </Text>
+
+              <View style={styles.nutritionGrid}>
+                <View style={styles.nutritionInput}>
+                  <Text style={styles.nutritionLabel}>Calories</Text>
+                  <TextInput
+                    style={styles.nutritionInputField}
+                    placeholder="200"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="number-pad"
+                    value={manualCalories}
+                    onChangeText={setManualCalories}
+                  />
+                </View>
+                <View style={styles.nutritionInput}>
+                  <Text style={styles.nutritionLabel}>Protein (g)</Text>
+                  <TextInput
+                    style={styles.nutritionInputField}
+                    placeholder="10"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="number-pad"
+                    value={manualProtein}
+                    onChangeText={setManualProtein}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.nutritionGrid}>
+                <View style={styles.nutritionInput}>
+                  <Text style={styles.nutritionLabel}>Carbs (g)</Text>
+                  <TextInput
+                    style={styles.nutritionInputField}
+                    placeholder="30"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="number-pad"
+                    value={manualCarbs}
+                    onChangeText={setManualCarbs}
+                  />
+                </View>
+                <View style={styles.nutritionInput}>
+                  <Text style={styles.nutritionLabel}>Fat (g)</Text>
+                  <TextInput
+                    style={styles.nutritionInputField}
+                    placeholder="10"
+                    placeholderTextColor={colors.textMuted}
+                    keyboardType="number-pad"
+                    value={manualFat}
+                    onChangeText={setManualFat}
+                  />
+                </View>
+              </View>
+            </View>
           )}
         </ScrollView>
 
-        {/* Add Button - Only for AI Tab */}
-        {activeTab === "ai" && (
+        {/* Add Button - For AI and Manual Tabs */}
+        {(activeTab === "ai" || activeTab === "manual") && (
           <View
             style={[
               styles.buttonContainer,
@@ -353,13 +580,17 @@ export default function AddMealScreen() {
                 (!description.trim() || isAnalyzing) &&
                   styles.addButtonDisabled,
               ]}
-              onPress={handleAddMeal}
+              onPress={
+                activeTab === "manual" ? handleAddManualMeal : handleAddMeal
+              }
               disabled={!description.trim() || isAnalyzing}
             >
               {isAnalyzing ? (
                 <>
                   <ActivityIndicator color="white" style={styles.buttonIcon} />
-                  <Text style={styles.addButtonText}>Analyzing...</Text>
+                  <Text style={styles.addButtonText}>
+                    {activeTab === "manual" ? "Adding..." : "Analyzing..."}
+                  </Text>
                 </>
               ) : (
                 <>
@@ -369,7 +600,9 @@ export default function AddMealScreen() {
                     color="white"
                     style={styles.buttonIcon}
                   />
-                  <Text style={styles.addButtonText}>Add Meal</Text>
+                  <Text style={styles.addButtonText}>
+                    {activeTab === "manual" ? "Save Meal" : "Add Meal"}
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
@@ -457,10 +690,10 @@ const createStyles = (colors: any) =>
     },
     textInput: {
       fontSize: typography.base,
-      fontFamily: typography.fontRegular, // Added font family
+      fontFamily: typography.fontRegular,
       color: colors.textPrimary,
-      minHeight: 120,
-      lineHeight: 24,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.sm,
     },
     tipContainer: {
       flexDirection: "row",
@@ -474,6 +707,31 @@ const createStyles = (colors: any) =>
       color: colors.textSecondary,
       marginLeft: spacing.sm,
       flex: 1,
+    },
+    usageContainer: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: spacing.md,
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+      backgroundColor: colors.surfaceSecondary,
+      borderRadius: borderRadius.md,
+    },
+    usageInfo: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+    },
+    usageText: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontMedium,
+      color: colors.textSecondary,
+    },
+    upgradeLink: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontSemibold,
+      color: colors.primary,
     },
     buttonContainer: {
       paddingTop: spacing.lg,
@@ -575,5 +833,40 @@ const createStyles = (colors: any) =>
       fontFamily: typography.fontRegular,
       color: colors.textMuted,
       textAlign: "center",
+    },
+    inputLabel: {
+      fontSize: typography.base,
+      fontFamily: typography.fontSemibold,
+      color: colors.textPrimary,
+      marginBottom: spacing.md,
+      marginTop: spacing.lg,
+    },
+    nutritionGrid: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      gap: spacing.md,
+      marginBottom: spacing.md,
+    },
+    nutritionInput: {
+      flex: 1,
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.md,
+      ...shadows.sm,
+    },
+    nutritionLabel: {
+      fontSize: typography.sm,
+      fontFamily: typography.fontMedium,
+      color: colors.textSecondary,
+      marginBottom: spacing.sm,
+    },
+    nutritionInputField: {
+      fontSize: typography.base,
+      fontFamily: typography.fontRegular,
+      color: colors.textPrimary,
+      padding: spacing.md,
+      backgroundColor: colors.surfaceSecondary,
+      borderRadius: borderRadius.md,
+      minHeight: 44,
     },
   });

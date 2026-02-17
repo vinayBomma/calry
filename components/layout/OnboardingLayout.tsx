@@ -96,11 +96,6 @@ export function OnboardingLayout({
             onPress={onBack}
             activeOpacity={0.7}
           >
-            <Ionicons
-              name="arrow-back"
-              size={20}
-              color={colors.textSecondary}
-            />
             <Text
               style={{
                 fontSize: typography.base,
@@ -140,9 +135,7 @@ export function OnboardingLayout({
           >
             {nextLabel}
           </Text>
-          {!nextLoading && (
-            <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
-          )}
+          {!nextLoading && null}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
