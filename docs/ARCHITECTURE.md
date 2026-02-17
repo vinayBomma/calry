@@ -1,10 +1,10 @@
 # Technical Architecture 🏗️
 
-This document explains the technical implementation and design decisions behind SnackTrack.
+This document explains the technical implementation and design decisions behind Calry.
 
 ## 1. Data Persistence (SQLite)
 
-SnackTrack uses `expo-sqlite` for all primary data. This ensures high performance and offline capability.
+Calry uses `expo-sqlite` for all primary data. This ensures high performance and offline capability.
 
 ### Schema:
 - `food_logs`: Stores daily meal entries (name, calories, macros, timestamp, mealType).
